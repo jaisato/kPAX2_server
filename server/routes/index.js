@@ -8,6 +8,8 @@ router.use('/user', require('./user'));
 
 router.use('/game', require('./games'));
 
+router.use('/userprofile', require('./userprofile'));
+
 /* GET home page. */
 router.get('/', function (req, res, next) {
   res.render('index', { title: 'Express' });

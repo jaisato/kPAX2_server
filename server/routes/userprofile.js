@@ -3,6 +3,7 @@ var router = express.Router();
 var ObjectId = require('mongodb').ObjectId;
 
 const debug = require('debug')('app:userprofile');
+const utils = require('../lib/utils');
 const USER_COLLECTION = 'userprofile';
 
 /**
@@ -28,6 +29,76 @@ router.get('/:id', function (req, res) {
 router.get('/', function (req, res) {
     var userQuery = getQuery(req);
     getUsers(req, res, userQuery);
+});
+
+function insertUser(req, user, res) {
+    req.db.collection(USER_COLLECTION).insertOne(
+        user,
+        function (err) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.insert ' + err.message);
+
+            debug(user);
+            res.jsonp(user);
+        }
+    );
+}
+/**
+ * Add a new user
+ */
+router.post('/', function (req, res) {
+
+    if (!utils.checkParams(req, ['nickname', 'name'])) {
+        return res.status(400).send('Bad parameters');
+    }
+    // find user
+    req.db.collection(USER_COLLECTION).findOne(
+        {nickname: req.body.nickname},
+        function (err, doc) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+
+            // User already exists
+            if (doc) return res.status(409).send('Already exists');
+
+            // crete new user - only wanted fields
+            var now = new Date();
+            var user = {
+                nickname: req.body.nickname,
+                name: req.body.name,
+                created_at: now,
+                updated_at: now
+            };
+
+            // create user
+            insertUser(req, user, res);
+        }
+    );
+});
+
+router.put('/', function (req, res) {
+
+    if (!utils.checkParams(req, ['_id'])) {
+        return res.status(400).send('Bad parameters');
+    }
+    // find user
+    req.db.collection(USER_COLLECTION).findOne(
+        {_id: req.body._id},
+        function (err, doc) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+
+            // User already exists
+            if (doc) return res.status(409).send('Already exists');
+
+            // crete new user - only wanted fields
+            var now = new Date();
+            var user = req.body
+
+            // create user
+            insertUser(req, user, res);
+        }
+    );
 });
 
 function getQuery(req) {

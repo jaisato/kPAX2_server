@@ -43,6 +43,30 @@ function insertUser(req, user, res) {
         }
     );
 }
+
+function updateUser(req, user, res) {
+    req.db.collection(USER_COLLECTION).replaceOne(
+        {_id: req.body._id}, user,
+        function (err) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.update ' + err.message);
+
+            debug(user);
+            res.jsonp(user);
+        }
+    );
+}
+
+function deleteUser(req, res) {
+    req.db.collection(USER_COLLECTION).deleteOne(
+        {_id: req.body._id},
+        function (err) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.update ' + err.message);
+        }
+    );
+}
+
 /**
  * Add a new user
  */
@@ -88,15 +112,35 @@ router.put('/', function (req, res) {
             // if error, return 500
             if (err) return res.status(500).send('Error when db.findOne ' + err.message);
 
-            // User already exists
-            if (doc) return res.status(409).send('Already exists');
 
             // crete new user - only wanted fields
             var now = new Date();
-            var user = req.body
+            var user = {
+                nickname: req.body.nickname,
+                name: req.body.name,
+                updated_at: now
+            };
 
-            // create user
-            insertUser(req, user, res);
+            // update user
+            updateUser(req, user, res);
+        }
+    );
+});
+
+router.delete('/', function (req, res) {
+
+    if (!utils.checkParams(req, ['_id'])) {
+        return res.status(400).send('Bad parameters');
+    }
+    // find user
+    req.db.collection(USER_COLLECTION).findOne(
+        {_id: req.body._id},
+        function (err, doc) {
+            // if error, return 500
+            if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+
+            // delete user
+            deleteUser(req, res);
         }
     );
 });

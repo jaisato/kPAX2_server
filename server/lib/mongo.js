@@ -8,7 +8,7 @@
  */
 
 var debug = require('debug')('app:lib:mongo');
-var ApiError = require('util').Error;
+var ApiError = require('./utils').ApiError;
 
 var internals = {};
 
@@ -29,7 +29,8 @@ internals.get = function(req, res, collection, id, cb) {
     function (err, doc) {
       // if error, return 500
       if (err) {
-        const error = internals.sendError(500, 'Error when db.findOne', res, err);
+//        const error = internals.sendError(500, 'Error when db.findOne', res, err);
+         error = internals.sendError(500, 'Error when db.findOne', res, err);
         debug ('.get error', error);
         return cb(error);
       }

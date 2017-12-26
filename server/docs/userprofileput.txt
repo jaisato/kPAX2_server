@@ -1,0 +1,7 @@
+PUT /userprofile/ HTTP/1.1
+Host: localhost:8081
+Content-Type: application/x-www-form-urlencoded
+Cache-Control: no-cache
+Postman-Token: afe8591d-8fce-88da-f5c8-88b0c48dfad3
+
+_id=58fdfd0cbc94e126008ed034&nickname=RuNcH78&name=Roger+Mart%C3%ADnez+Ter%C3%A9s

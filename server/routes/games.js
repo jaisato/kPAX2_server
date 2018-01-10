@@ -114,6 +114,64 @@ router.get('/list', function (req, res, next) {
   );
 });
 
+
+router.get('/listsort', function (req, res, next) {
+  debug('GET /game/listsort');
+
+  debug('games/listsort endpoint! Query Chain passed:', req.query.q);
+
+  var gameQuery = {};
+  var gameSort = {};
+  
+  if (req.query.q) {
+    debug('Query condition:q=', req.query.q);
+    try {
+      gameQuery = JSON.parse(req.query.q);
+    }
+    catch (e) {
+      debug(' Bad JSON format, NO Query Done!: NO records listed');
+      gameQuery = { _id: null };
+    }
+  };
+  
+   if (req.query.s) {
+    debug('Sort condition:q=', req.query.s);
+    try {
+      gameSort = JSON.parse(req.query.s);
+    }
+    catch (e) {
+      debug(' Bad JSON format, NO Sort Done!: NO records listed');
+      gameSort = { _id: null };
+    }
+  };
+
+  debug('JSON Query passed: ', gameQuery);
+  debug('JSON Sort passed: ', gameSort);
+
+ // find game
+  req.db.collection('games').find(gameQuery).sort(gameSort).toArray(
+    function (err, data) {
+      // if error, return 500
+  
+      if (err) return res.status(500).send('Error when db.find ' + err.message);
+    // walk cursor
+    /*
+      var games = [];
+      cursor.each(function (err, doc) {
+        if (doc == null) {
+          debug(games);
+          return res.jsonp(games);
+        }
+        games.push(doc);
+      });
+      */
+      res.jsonp(data);
+    }
+  );
+  
+});
+
+
 //DEL
 // /**
 //  * list ONE game (by Id of the Game)
@@ -145,6 +203,7 @@ router.get('/list', function (req, res, next) {
  * parameter: game
  * GET /game/:game
  */
+/*
 router.get('/category/:id', function (req, res, next) {
 
   mongo.get(req, res, 'gameCategories', req.params.id, function (err, doc) {
@@ -153,6 +212,7 @@ router.get('/category/:id', function (req, res, next) {
     res.jsonp(doc);
   });
 });
+*/
 
 
 
@@ -235,12 +295,12 @@ router.post('/:game/like', function (req, res) {
     // 400 - bad request
     debug('** No Parameters. gameId & userId required');
     return res.status(400).send('Bad parameters. gameId & userId required ');
-  }
+  } else {
+}
 
   // find game
   req.db.collection('games').findOne(
     { guid: gameId },
-
     function (err, doc) {
       // if error, return 500
       if (err) return res.status(500).send('Error when db.findOne ' + err.message);
@@ -283,6 +343,7 @@ router.post('/:game/like', function (req, res) {
 //  like A end
 
 router.post('/:game/unlike', function (req, res) {
+
 
   // unmark the LIKE of a game & // decrease the like marker by one
   // check parameters

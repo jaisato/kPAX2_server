@@ -8,6 +8,8 @@ router.use('/user', require('./user'));
 
 router.use('/game', require('./games'));
 
+router.use('/category', require('./category'));
+
 router.use('/userprofile', require('./userprofile'));
 
 /* GET home page. */

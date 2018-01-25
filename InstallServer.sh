@@ -12,7 +12,7 @@
 # NPM
 clear
 echo "Install NPM & nodejs"
-sudo aptitude install npm nodejs-legacy
+sudo aptitude install npm nodejs-legacy 
 read -rsp $'Press any key to continue...\n' -n1
 
 # MongoDB
@@ -29,7 +29,7 @@ read -rsp $'Press any key to continue...\n' -n1
 # NPM modules
 clear
 echo "Install NPM Modules"
-npm install express serve-favicon morgan cookie-parser body-parser debugging mongodb debug pug
+npm install express serve-favicon morgan cookie-parser body-parser debugging mongodb debug pug jade
 read -rsp $'Press any key to continue...\n' -n1
 
 # Execute server

@@ -142,10 +142,11 @@ router.get('/list', function (req, res) {
  */
 router.get('/:id', function (req, res, next) {
   var userId = req.params.id;
+  debug('userId:', userId);
 
   // find user
   req.db.collection('users').findOne(
-    { _id: new ObjectId(userId) },
+    { guid: userId },
     function (err, doc) {
       // if error, return 500
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);

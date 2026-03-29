@@ -169,7 +169,7 @@ router.get('/:id', function (req, res, next) {
 router.delete('/:id', function (req, res) {
   var userId = req.params.id;
 
-  // find game
+  // find user
   req.db.collection('users').findOne(
     { _id: new ObjectId(userId) },
     function (err, doc) {
@@ -178,9 +178,9 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
-      // game found -- UPdate status: set to 3 => Deleted
+      // user found -- Update status: set to 3 => Deleted
       req.db.collection('users').update(
         { _id: new ObjectId(userId) },
         { $set: { status: 3 } },

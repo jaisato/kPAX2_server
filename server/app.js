@@ -37,7 +37,7 @@ MongoClient.connect(url, function (err, db) {
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -60,8 +60,9 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+var allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', allowedOrigin);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });

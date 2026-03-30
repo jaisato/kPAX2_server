@@ -9,6 +9,31 @@ const mongo = require('../lib/mongo');
 const debug = require('debug')('app:games');
 
 /**
+ * Sanitize a user-provided query object to prevent NoSQL injection.
+ * Recursively rejects any keys that start with '$' (MongoDB operators).
+ */
+function sanitizeQuery(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeQuery);
+  }
+
+  var clean = {};
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (key.charAt(0) === '$') {
+      throw new Error('Invalid query: keys starting with $ are not allowed');
+    }
+    clean[key] = sanitizeQuery(obj[key]);
+  }
+  return clean;
+}
+
+/**
  * Add a new game
  */
 router.post('/:id', function (req, res) {
@@ -71,7 +96,7 @@ router.post('/:id', function (req, res) {
  * if no parameter passed, all games ar listed
  * the 'q' query must be a valid JSON query condition in MongoBD format
  * endpoint method: GET
- * example : /games/list?q={"nlikes":{"$lt":15}}
+ * example : /games/list?q={"nlikes":5}
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
@@ -84,12 +109,13 @@ router.get('/list', function (req, res, next) {
 
     try {
       gameQuery = JSON.parse(req.query.q);
+      gameQuery = sanitizeQuery(gameQuery);
     }
     catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      gameQuery = { _id: null };
+      debug(' Bad or unsafe JSON query: NO records listed.', e.message);
+      return res.status(400).send('Bad or unsafe query parameter');
     }
-  };
+  }
 
   debug('JSON Query passed: ', gameQuery);
 
@@ -357,4 +383,3 @@ function sendError (error, message, res) {
 }
 
 module.exports = router;
-  

@@ -7,6 +7,31 @@ const utils = require('../lib/utils');
 const debug = require('debug')('app:user');
 
 /**
+ * Sanitize a user-provided query object to prevent NoSQL injection.
+ * Recursively rejects any keys that start with '$' (MongoDB operators).
+ */
+function sanitizeQuery(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeQuery);
+  }
+
+  var clean = {};
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    if (key.charAt(0) === '$') {
+      throw new Error('Invalid query: keys starting with $ are not allowed');
+    }
+    clean[key] = sanitizeQuery(obj[key]);
+  }
+  return clean;
+}
+
+/**
  * Add a new user
  */
 router.post('/', function (req, res) {
@@ -69,12 +94,13 @@ router.get('/list', function (req, res) {
 
     try {
       userQuery = JSON.parse(req.query.q);
+      userQuery = sanitizeQuery(userQuery);
     }
     catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      userQuery = { _id: null };
+      debug(' Bad or unsafe JSON query: NO records listed.', e.message);
+      return res.status(400).send('Bad or unsafe query parameter');
     }
-  };
+  }
 
   debug('JSON Query passed: ', userQuery);
 
@@ -99,39 +125,6 @@ router.get('/list', function (req, res) {
     }
   );
 });
-
-// DELETE
-// /**
-//  * list users (all users in the system, whatever is them status )
-//  * URL example:  METHOD: GET
-//  * http://localhost:3000/user/lista
-//  */
-// router.get('/listall', function (req, res, next) {
-//   // find user
-//   req.db.collection('users').find(
-//     {},
-//     function (err, cursor) {
-//
-//       // check error
-//       if (err) {
-//         return res.status(500).send(err.message);
-//       }
-//
-//       var users = [];
-//
-//       // walk cursor
-//       cursor.each(function (err, doc) {
-//
-//         // end
-//         if (doc == null) {
-//           return res.jsonp(users);
-//         }
-//
-//         users.push(doc);
-//       });
-//     }
-//   );
-// });
 
 /**
  * list ONE user (by Id of the user)
@@ -169,7 +162,7 @@ router.get('/:id', function (req, res, next) {
 router.delete('/:id', function (req, res) {
   var userId = req.params.id;
 
-  // find game
+  // find user
   req.db.collection('users').findOne(
     { _id: new ObjectId(userId) },
     function (err, doc) {
@@ -178,9 +171,9 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
-      // game found -- UPdate status: set to 3 => Deleted
+      // user found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(
         { _id: new ObjectId(userId) },
         { $set: { status: 3 } },

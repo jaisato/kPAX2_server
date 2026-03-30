@@ -48,24 +48,29 @@ internals.get = function(req, res, collection, id, cb) {
 };
 
 /**
- * findOne
+ * list documents in a collection matching the given query
  */
-internals.list = function(req, res, collection, cb) {
+internals.list = function(req, res, collection, query, cb) {
 
-  debug ('list', id);
+  debug ('list', collection, query);
 
-  // find game
-  req.db.collection(collection).findOne (
-    { guid: id },
-    function (err, doc) {
+  // find documents
+  req.db.collection(collection).find (
+    query,
+    function (err, cursor) {
       // if error, return 500
-      if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+      if (err) return res.status(500).send('Error when db.find ' + err.message);
 
-      // Game not found
-      if (!doc) return res.status(404).send('Not found');
+      // walk the cursor
+      var docs = [];
+      cursor.each(function (err, doc) {
+        if (doc == null) {
+          debug(docs);
+          return res.jsonp(docs);
+        }
 
-      debug(doc);
-      return res.jsonp(doc);
+        docs.push(doc);
+      });
     }
   );
 };

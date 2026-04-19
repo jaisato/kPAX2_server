@@ -60,8 +60,12 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+// SECURITY: Configure CORS_ORIGIN environment variable in production.
+// Defaults to localhost for development. Avoid using '*' in production
+// as it allows any origin to make requests to this API.
+var corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', corsOrigin);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });

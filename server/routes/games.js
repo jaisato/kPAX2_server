@@ -9,6 +9,32 @@ const mongo = require('../lib/mongo');
 const debug = require('debug')('app:games');
 
 /**
+ * Sanitize a parsed query object to prevent NoSQL injection.
+ * Removes any keys starting with '$' (MongoDB operators) at any depth.
+ */
+function sanitizeQuery(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeQuery);
+  }
+
+  var clean = {};
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    // Strip any key that starts with '$' to block MongoDB operators
+    if (key.charAt(0) === '$') {
+      continue;
+    }
+    clean[key] = sanitizeQuery(obj[key]);
+  }
+  return clean;
+}
+
+/**
  * Add a new game
  */
 router.post('/:id', function (req, res) {
@@ -71,7 +97,7 @@ router.post('/:id', function (req, res) {
  * if no parameter passed, all games ar listed
  * the 'q' query must be a valid JSON query condition in MongoBD format
  * endpoint method: GET
- * example : /games/list?q={"nlikes":{"$lt":15}}
+ * example : /games/list?q={"nlikes":5}
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
@@ -90,6 +116,9 @@ router.get('/list', function (req, res, next) {
       gameQuery = { _id: null };
     }
   };
+
+  // Sanitize query to prevent NoSQL injection
+  gameQuery = sanitizeQuery(gameQuery);
 
   debug('JSON Query passed: ', gameQuery);
 
@@ -357,4 +386,3 @@ function sendError (error, message, res) {
 }
 
 module.exports = router;
-  

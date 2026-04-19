@@ -7,6 +7,32 @@ const utils = require('../lib/utils');
 const debug = require('debug')('app:user');
 
 /**
+ * Sanitize a parsed query object to prevent NoSQL injection.
+ * Removes any keys starting with '$' (MongoDB operators) at any depth.
+ */
+function sanitizeQuery(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeQuery);
+  }
+
+  var clean = {};
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    // Strip any key that starts with '$' to block MongoDB operators
+    if (key.charAt(0) === '$') {
+      continue;
+    }
+    clean[key] = sanitizeQuery(obj[key]);
+  }
+  return clean;
+}
+
+/**
  * Add a new user
  */
 router.post('/', function (req, res) {
@@ -75,6 +101,9 @@ router.get('/list', function (req, res) {
       userQuery = { _id: null };
     }
   };
+
+  // Sanitize query to prevent NoSQL injection
+  userQuery = sanitizeQuery(userQuery);
 
   debug('JSON Query passed: ', userQuery);
 
@@ -178,7 +207,7 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(

@@ -56,15 +56,19 @@ internals.list = function(req, res, collection, query, cb) {
 
   // find documents
   req.db.collection(collection).find (
-    query || {},
+    query,
     function (err, cursor) {
       // if error, return 500
-      if (err) return res.status(500).send('Error when db.find ' + err.message);
+      if (err) {
+        const error = internals.sendError(500, 'Error when db.find', res, err);
+        debug ('.list error', error);
+        return cb(error);
+      }
 
       var results = [];
       cursor.each(function (err, doc) {
         if (doc == null) {
-          debug(results);
+          debug('.list results', results);
           return cb(undefined, results);
         }
         results.push(doc);

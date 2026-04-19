@@ -8,8 +8,31 @@ const mongo = require('../lib/mongo');
 
 const debug = require('debug')('app:games');
 
-// Whitelist of allowed query fields for game listing
-const ALLOWED_GAME_QUERY_FIELDS = ['name', 'category', 'status', 'owner', 'nlikes', 'tags'];
+/**
+ * Sanitize a parsed query object to prevent NoSQL injection.
+ * Removes any keys starting with '$' (MongoDB operators) at any depth.
+ */
+function sanitizeQuery(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeQuery);
+  }
+
+  var clean = {};
+  var keys = Object.keys(obj);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    // Strip any key that starts with '$' to block MongoDB operators
+    if (key.charAt(0) === '$') {
+      continue;
+    }
+    clean[key] = sanitizeQuery(obj[key]);
+  }
+  return clean;
+}
 
 /**
  * Add a new game
@@ -70,38 +93,11 @@ router.post('/:id', function (req, res) {
 });
 
 /**
- * Sanitize a query object by only allowing whitelisted fields.
- * Rejects any keys starting with '$' to prevent operator injection.
- */
-function sanitizeQuery(rawQuery, allowedFields) {
-  var safeQuery = {};
-  allowedFields.forEach(function (field) {
-    if (rawQuery.hasOwnProperty(field)) {
-      var value = rawQuery[field];
-      // Reject values that are objects with MongoDB operator keys (e.g. {$gt: ""})
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        var keys = Object.keys(value);
-        var hasDollarKey = keys.some(function (k) { return k.charAt(0) === '$'; });
-        if (hasDollarKey) {
-          debug('Rejected operator in query field:', field, value);
-          return; // skip this field
-        }
-      }
-      safeQuery[field] = value;
-    }
-  });
-  return safeQuery;
-}
-
-/**
- * list games under a safe, whitelisted query condition
- * if no parameter passed, all games are listed
- * the 'q' query must be a valid JSON with only allowed fields
+ * list games under a FREE condition
+ * if no parameter passed, all games ar listed
+ * the 'q' query must be a valid JSON query condition in MongoBD format
  * endpoint method: GET
- * example : /games/list?q={"name":"myGame"}
- *
- * Only the following fields are allowed in queries:
- * name, category, status, owner, nlikes, tags
+ * example : /games/list?q={"nlikes":5}
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
@@ -113,14 +109,16 @@ router.get('/list', function (req, res, next) {
     debug('Query condition:q=', req.query.q);
 
     try {
-      var rawQuery = JSON.parse(req.query.q);
-      gameQuery = sanitizeQuery(rawQuery, ALLOWED_GAME_QUERY_FIELDS);
+      gameQuery = JSON.parse(req.query.q);
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
       gameQuery = { _id: null };
     }
-  }
+  };
+
+  // Sanitize query to prevent NoSQL injection
+  gameQuery = sanitizeQuery(gameQuery);
 
   debug('JSON Query passed: ', gameQuery);
 

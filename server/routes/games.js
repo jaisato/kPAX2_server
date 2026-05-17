@@ -67,31 +67,45 @@ router.post('/:id', function (req, res) {
 });
 
 /**
- * list games under a FREE condition
- * if no parameter passed, all games ar listed
- * the 'q' query must be a valid JSON query condition in MongoBD format
+ * list games under a filtered condition
+ * Supports query parameters: name, category, status, minlikes, maxlikes
  * endpoint method: GET
- * example : /games/list?q={"nlikes":{"$lt":15}}
+ * example: /games/list?category=arcade&minlikes=5
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
 
-  debug('games/list endpoint! Query Chain passed:', req.query.q);
-
+  // SECURITY FIX: Replaced raw JSON.parse(req.query.q) which allowed arbitrary MongoDB
+  // queries including dangerous operators like $where, $regex, $gt on any field.
+  // Now we use a whitelist approach with specific allowed filter parameters.
   var gameQuery = {};
-  if (req.query.q) {
-    debug('Query condition:q=', req.query.q);
 
-    try {
-      gameQuery = JSON.parse(req.query.q);
+  if (req.query.name) {
+    gameQuery.name = String(req.query.name);
+  }
+  if (req.query.category) {
+    gameQuery.category = String(req.query.category);
+  }
+  if (req.query.status) {
+    var status = parseInt(req.query.status, 10);
+    if (!isNaN(status)) {
+      gameQuery.status = status;
     }
-    catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      gameQuery = { _id: null };
+  }
+  if (req.query.minlikes || req.query.maxlikes) {
+    gameQuery.nlikes = {};
+    if (req.query.minlikes) {
+      var minlikes = parseInt(req.query.minlikes, 10);
+      if (!isNaN(minlikes)) gameQuery.nlikes.$gte = minlikes;
     }
-  };
+    if (req.query.maxlikes) {
+      var maxlikes = parseInt(req.query.maxlikes, 10);
+      if (!isNaN(maxlikes)) gameQuery.nlikes.$lte = maxlikes;
+    }
+    if (Object.keys(gameQuery.nlikes).length === 0) delete gameQuery.nlikes;
+  }
 
-  debug('JSON Query passed: ', gameQuery);
+  debug('Query passed: ', gameQuery);
 
   // find game
   req.db.collection('games').find(

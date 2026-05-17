@@ -48,24 +48,30 @@ internals.get = function(req, res, collection, id, cb) {
 };
 
 /**
- * findOne
+ * list all documents in a collection
+ * BUG FIX: Was using undefined 'id' variable and findOne instead of find.
  */
 internals.list = function(req, res, collection, cb) {
 
-  debug ('list', id);
+  debug ('list', collection);
 
-  // find game
-  req.db.collection(collection).findOne (
-    { guid: id },
-    function (err, doc) {
-      // if error, return 500
-      if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+  req.db.collection(collection).find(
+    {},
+    function (err, cursor) {
+      if (err) {
+        const error = internals.sendError(500, 'Error when db.find', res, err);
+        debug ('.list error', error);
+        return cb(error);
+      }
 
-      // Game not found
-      if (!doc) return res.status(404).send('Not found');
-
-      debug(doc);
-      return res.jsonp(doc);
+      var docs = [];
+      cursor.each(function (err, doc) {
+        if (doc == null) {
+          debug('.list response', docs);
+          return cb(undefined, docs);
+        }
+        docs.push(doc);
+      });
     }
   );
 };

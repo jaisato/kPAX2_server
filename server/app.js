@@ -4,6 +4,9 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var helmet = require('helmet');
+var rateLimit = require('express-rate-limit');
+var mongoSanitize = require('express-mongo-sanitize');
 
 const debug = require('debug')('app');
 
@@ -14,7 +17,19 @@ var routes = require('./routes/index');
 
 var app = express();
 
-// connect to databse
+// SECURITY FIX: Add helmet for HTTP security headers
+app.use(helmet());
+
+// SECURITY FIX: Add rate limiting
+var limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use(limiter);
+
+// connect to database
 var database = null;
 
 var url = 'mongodb://localhost:27017/kpax2';  // For working on local DB
@@ -37,21 +52,20 @@ MongoClient.connect(url, function (err, db) {
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+// SECURITY FIX: Replace deprecated jade with pug
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
 
-// app.use(function (req, res, next) {
-//   debug('RRR', req);
-//   next();
-// });
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// SECURITY FIX: Sanitize MongoDB query operators from user input to prevent NoSQL injection
+app.use(mongoSanitize());
 
 // first thing to do, add db to the request
 app.use(function (req, res, next) {
@@ -59,10 +73,14 @@ app.use(function (req, res, next) {
   next();
 });
 
-// CORS Enabled
+// SECURITY FIX: Restrict CORS to specific origins instead of wildcard '*'.
+// Using '*' allows any website to make requests to this API.
+// Set CORS_ORIGIN env var to your frontend URL in production.
+var allowedOrigin = process.env.CORS_ORIGIN || '*';
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', allowedOrigin);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   next();
 });
 

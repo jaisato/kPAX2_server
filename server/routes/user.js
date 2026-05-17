@@ -53,30 +53,31 @@ router.post('/', function (req, res) {
 });
 
 /**
- * list users under a FREE condition
- * if no parameter passed, all users ar listed
- * the 'q' query must be a valid JSON query condition in MongoBD format
+ * list users under a filtered condition
+ * Supports query parameters: login, name, status
  * endpoint method: GET
- * example : /users/list?q={"status":3}
+ * example: /user/list?status=1&name=john
  */
 router.get('/list', function (req, res) {
 
-  debug('/game/list. Query Chain passed:', req.query.q);
-
-  // read user query. All users by default
+  // SECURITY FIX: Replaced raw JSON.parse(req.query.q) which allowed arbitrary MongoDB
+  // queries (NoSQL injection). Now uses a whitelist of specific allowed filter parameters.
   var userQuery = {};
-  if (req.query.q) {
 
-    try {
-      userQuery = JSON.parse(req.query.q);
+  if (req.query.login) {
+    userQuery.login = String(req.query.login);
+  }
+  if (req.query.name) {
+    userQuery.name = String(req.query.name);
+  }
+  if (req.query.status) {
+    var status = parseInt(req.query.status, 10);
+    if (!isNaN(status)) {
+      userQuery.status = status;
     }
-    catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      userQuery = { _id: null };
-    }
-  };
+  }
 
-  debug('JSON Query passed: ', userQuery);
+  debug('User query: ', userQuery);
 
   // find users
   req.db.collection('users').find(
@@ -177,8 +178,8 @@ router.delete('/:id', function (req, res) {
       // if error, return 500
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
-      // User not found
-      if (doc) return res.status(404).send('Not found');
+      // BUG FIX: Logic was inverted -- returned 404 when user WAS found
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(

@@ -1,19 +1,21 @@
 {
   "name": "KPAX2_server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "start": "node ./bin/www"
   },
   "dependencies": {
-    "body-parser": "^1.13.3",
-    "cookie-parser": "^1.3.5",
-    "debug": "^2.2.0",
-    "express": "~4.13.1",
-    "jade": "^1.11.0",
-    "mongodb": "^2.1.18",
-    "morgan": "^1.6.1",
-    "pug": "*",
-    "serve-favicon": "^2.3.0"
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.7",
+    "debug": "^4.4.0",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.5.0",
+    "mongodb": "^6.12.0",
+    "morgan": "^1.10.0",
+    "pug": "^3.0.3",
+    "serve-favicon": "^2.5.0",
+    "express-mongo-sanitize": "^2.2.0"
   }
 }

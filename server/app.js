@@ -60,8 +60,9 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+var allowedOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', allowedOrigin);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });

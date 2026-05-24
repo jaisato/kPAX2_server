@@ -7,6 +7,58 @@ const utils = require('../lib/utils');
 const debug = require('debug')('app:user');
 
 /**
+ * Sanitize a user-supplied query object by stripping any keys that
+ * start with '$' (MongoDB operators like $where, $gt, $regex, etc.)
+ * This prevents NoSQL injection attacks.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) {
+    return {};
+  }
+
+  var clean = {};
+  var allowedFields = ['login', 'name', 'status', 'created_at', 'updated_at'];
+
+  Object.keys(query).forEach(function (key) {
+    // Reject any key starting with '$' (MongoDB operator)
+    if (key.charAt(0) === '$') {
+      debug('sanitizeQuery: stripped dangerous key:', key);
+      return;
+    }
+
+    // Only allow whitelisted fields
+    if (allowedFields.indexOf(key) === -1) {
+      debug('sanitizeQuery: stripped non-whitelisted key:', key);
+      return;
+    }
+
+    var value = query[key];
+
+    // If the value is an object, strip any '$' operator keys inside it
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      var cleanValue = {};
+      var hasValidKeys = false;
+      Object.keys(value).forEach(function (subKey) {
+        if (subKey.charAt(0) === '$') {
+          debug('sanitizeQuery: stripped dangerous operator:', subKey);
+          return;
+        }
+        cleanValue[subKey] = value[subKey];
+        hasValidKeys = true;
+      });
+      if (hasValidKeys) {
+        clean[key] = cleanValue;
+      }
+      return;
+    }
+
+    clean[key] = value;
+  });
+
+  return clean;
+}
+
+/**
  * Add a new user
  */
 router.post('/', function (req, res) {
@@ -61,7 +113,7 @@ router.post('/', function (req, res) {
  */
 router.get('/list', function (req, res) {
 
-  debug('/game/list. Query Chain passed:', req.query.q);
+  debug('/user/list. Query Chain passed:', req.query.q);
 
   // read user query. All users by default
   var userQuery = {};
@@ -75,6 +127,9 @@ router.get('/list', function (req, res) {
       userQuery = { _id: null };
     }
   };
+
+  // Sanitize query to prevent NoSQL injection
+  userQuery = sanitizeQuery(userQuery);
 
   debug('JSON Query passed: ', userQuery);
 
@@ -99,39 +154,6 @@ router.get('/list', function (req, res) {
     }
   );
 });
-
-// DELETE
-// /**
-//  * list users (all users in the system, whatever is them status )
-//  * URL example:  METHOD: GET
-//  * http://localhost:3000/user/lista
-//  */
-// router.get('/listall', function (req, res, next) {
-//   // find user
-//   req.db.collection('users').find(
-//     {},
-//     function (err, cursor) {
-//
-//       // check error
-//       if (err) {
-//         return res.status(500).send(err.message);
-//       }
-//
-//       var users = [];
-//
-//       // walk cursor
-//       cursor.each(function (err, doc) {
-//
-//         // end
-//         if (doc == null) {
-//           return res.jsonp(users);
-//         }
-//
-//         users.push(doc);
-//       });
-//     }
-//   );
-// });
 
 /**
  * list ONE user (by Id of the user)
@@ -178,7 +200,7 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(

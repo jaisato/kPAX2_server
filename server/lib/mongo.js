@@ -8,7 +8,6 @@
  */
 
 var debug = require('debug')('app:lib:mongo');
-var ApiError = require('util').Error;
 
 var internals = {};
 
@@ -48,24 +47,31 @@ internals.get = function(req, res, collection, id, cb) {
 };
 
 /**
- * findOne
+ * find (list) documents in a collection
  */
-internals.list = function(req, res, collection, cb) {
+internals.list = function(req, res, collection, query, cb) {
 
-  debug ('list', id);
+  debug ('list', collection, query);
 
-  // find game
-  req.db.collection(collection).findOne (
-    { guid: id },
-    function (err, doc) {
+  // find documents
+  req.db.collection(collection).find (
+    query,
+    function (err, cursor) {
       // if error, return 500
-      if (err) return res.status(500).send('Error when db.findOne ' + err.message);
+      if (err) {
+        const error = internals.sendError(500, 'Error when db.find', res, err);
+        debug ('.list error', error);
+        return cb(error);
+      }
 
-      // Game not found
-      if (!doc) return res.status(404).send('Not found');
-
-      debug(doc);
-      return res.jsonp(doc);
+      var results = [];
+      cursor.each(function (err, doc) {
+        if (doc == null) {
+          debug('.list results', results);
+          return cb(undefined, results);
+        }
+        results.push(doc);
+      });
     }
   );
 };
@@ -81,5 +87,5 @@ internals.sendError = function(status, message, res, err) {
 
   res.status(status).send(message);
 
-  return ApiError (status, message);
+  return new Error(status + ': ' + message);
 };

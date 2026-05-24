@@ -9,6 +9,58 @@ const mongo = require('../lib/mongo');
 const debug = require('debug')('app:games');
 
 /**
+ * Sanitize a user-supplied query object by stripping any keys that
+ * start with '$' (MongoDB operators like $where, $gt, $regex, etc.)
+ * This prevents NoSQL injection attacks.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) {
+    return {};
+  }
+
+  var clean = {};
+  var allowedFields = ['name', 'category', 'owner', 'status', 'nlikes', 'tags', 'guid', 'created_at', 'updated_at'];
+
+  Object.keys(query).forEach(function (key) {
+    // Reject any key starting with '$' (MongoDB operator)
+    if (key.charAt(0) === '$') {
+      debug('sanitizeQuery: stripped dangerous key:', key);
+      return;
+    }
+
+    // Only allow whitelisted fields
+    if (allowedFields.indexOf(key) === -1) {
+      debug('sanitizeQuery: stripped non-whitelisted key:', key);
+      return;
+    }
+
+    var value = query[key];
+
+    // If the value is an object, strip any '$' operator keys inside it
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      var cleanValue = {};
+      var hasValidKeys = false;
+      Object.keys(value).forEach(function (subKey) {
+        if (subKey.charAt(0) === '$') {
+          debug('sanitizeQuery: stripped dangerous operator:', subKey);
+          return;
+        }
+        cleanValue[subKey] = value[subKey];
+        hasValidKeys = true;
+      });
+      if (hasValidKeys) {
+        clean[key] = cleanValue;
+      }
+      return;
+    }
+
+    clean[key] = value;
+  });
+
+  return clean;
+}
+
+/**
  * Add a new game
  */
 router.post('/:id', function (req, res) {
@@ -71,7 +123,7 @@ router.post('/:id', function (req, res) {
  * if no parameter passed, all games ar listed
  * the 'q' query must be a valid JSON query condition in MongoBD format
  * endpoint method: GET
- * example : /games/list?q={"nlikes":{"$lt":15}}
+ * example : /games/list?q={"status":1}
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
@@ -90,6 +142,9 @@ router.get('/list', function (req, res, next) {
       gameQuery = { _id: null };
     }
   };
+
+  // Sanitize query to prevent NoSQL injection
+  gameQuery = sanitizeQuery(gameQuery);
 
   debug('JSON Query passed: ', gameQuery);
 
@@ -113,32 +168,6 @@ router.get('/list', function (req, res, next) {
     }
   );
 });
-
-//DEL
-// /**
-//  * list ONE game (by Id of the Game)
-//  * parameter: game
-//  * GET /game/:game
-//  */
-// router.get('/:id', function (req, res, next) {
-//   var id = req.params.id;
-//   debug(id);
-
-//   // find game
-//   req.db.collection('games').findOne(
-//     { guid: id },
-//     function (err, doc) {
-//       // if error, return 500
-//       if (err) return res.status(500).send('Error when db.findOne ' + err.message);
-
-//       // Game not found
-//       if (!doc) return res.status(404).send('Not found');
-
-//       debug(doc);
-//       return res.jsonp(doc);
-//     }
-//   );
-// });
 
 /**
  * list ONE game (by Id of the Game)
@@ -357,4 +386,3 @@ function sendError (error, message, res) {
 }
 
 module.exports = router;
-  

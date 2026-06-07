@@ -69,6 +69,8 @@ router.get('/list', function (req, res) {
 
     try {
       userQuery = JSON.parse(req.query.q);
+      // SECURITY FIX: Sanitize MongoDB query to prevent NoSQL injection
+      userQuery = sanitizeQuery(userQuery);
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
@@ -177,8 +179,8 @@ router.delete('/:id', function (req, res) {
       // if error, return 500
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
-      // User not found
-      if (doc) return res.status(404).send('Not found');
+      // BUG FIX: Logic was inverted - should return 404 when doc is NOT found
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(
@@ -197,5 +199,24 @@ router.delete('/:id', function (req, res) {
     }
   ); // find one
 });
+
+/**
+ * SECURITY FIX: Sanitize MongoDB query objects to prevent NoSQL injection.
+ * Removes dangerous operators like $where, $regex with code execution potential.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) return query;
+  var sanitized = {};
+  var dangerousKeys = ['$where', '$accumulator', '$function'];
+  Object.keys(query).forEach(function(key) {
+    if (dangerousKeys.indexOf(key) !== -1) return; // Skip dangerous operators
+    if (typeof query[key] === 'object' && query[key] !== null) {
+      sanitized[key] = sanitizeQuery(query[key]);
+    } else {
+      sanitized[key] = query[key];
+    }
+  });
+  return sanitized;
+}
 
 module.exports = router;

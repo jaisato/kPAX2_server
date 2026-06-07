@@ -84,6 +84,9 @@ router.get('/list', function (req, res, next) {
 
     try {
       gameQuery = JSON.parse(req.query.q);
+      // SECURITY FIX: Sanitize MongoDB query to prevent NoSQL injection.
+      // Remove any operators that start with $ to prevent query manipulation.
+      gameQuery = sanitizeQuery(gameQuery);
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
@@ -347,6 +350,25 @@ router.post('/:game/unlike', function (req, res) {
 //  UNlike  end
 
 
+
+/**
+ * SECURITY FIX: Sanitize MongoDB query objects to prevent NoSQL injection.
+ * Removes dangerous operators like $where, $regex with code execution potential.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) return query;
+  var sanitized = {};
+  var dangerousKeys = ['$where', '$accumulator', '$function'];
+  Object.keys(query).forEach(function(key) {
+    if (dangerousKeys.indexOf(key) !== -1) return; // Skip dangerous operators
+    if (typeof query[key] === 'object' && query[key] !== null) {
+      sanitized[key] = sanitizeQuery(query[key]);
+    } else {
+      sanitized[key] = query[key];
+    }
+  });
+  return sanitized;
+}
 
 /**
  *

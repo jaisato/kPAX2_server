@@ -60,9 +60,15 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+// SECURITY FIX: Restrict CORS to specific trusted origins instead of wildcard '*'
+var allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'];
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  var origin = req.headers.origin;
+  if (allowedOrigins.indexOf(origin) !== -1) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   next();
 });
 

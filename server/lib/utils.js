@@ -25,8 +25,8 @@ util.inherits(internals.ApiError, Error);
  */
 internals.checkParams = function (req, params) {
 
-  // GET or post
-  const body = req.body || req.body;
+  // GET or POST - check body for POST, query for GET
+  const body = req.body || req.query;
 
   var ret = true;
   (params || []).forEach(function (doc) {

@@ -31,14 +31,16 @@ You can specify parameters using local environment
 For stating the server:
 
 ```bash
-$ MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ MONGODB_URL="mongodb://<user>:<password>@<host>:<port>/<database>" bin/www
 ```
 
 For stating the server with debug
 
 ```bash
-$ DEBUG=* MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ DEBUG=* MONGODB_URL="mongodb://<user>:<password>@<host>:<port>/<database>" bin/www
 ```
+
+> **Note:** Never commit real credentials to version control. Use environment variables or a `.env` file (added to `.gitignore`) to store sensitive configuration.
 
 ### Change the port  number
 

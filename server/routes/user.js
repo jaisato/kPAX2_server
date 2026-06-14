@@ -7,6 +7,22 @@ const utils = require('../lib/utils');
 const debug = require('debug')('app:user');
 
 /**
+ * Sanitize a MongoDB query object to prevent NoSQL injection.
+ * Removes dangerous operators like $where, $expr, $function, etc.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) return {};
+  var dangerousKeys = ['$where', '$expr', '$function', '$accumulator'];
+  var sanitized = {};
+  Object.keys(query).forEach(function (key) {
+    if (dangerousKeys.indexOf(key) === -1) {
+      sanitized[key] = query[key];
+    }
+  });
+  return sanitized;
+}
+
+/**
  * Add a new user
  */
 router.post('/', function (req, res) {
@@ -61,7 +77,7 @@ router.post('/', function (req, res) {
  */
 router.get('/list', function (req, res) {
 
-  debug('/game/list. Query Chain passed:', req.query.q);
+  debug('/user/list. Query Chain passed:', req.query.q);
 
   // read user query. All users by default
   var userQuery = {};
@@ -75,6 +91,9 @@ router.get('/list', function (req, res) {
       userQuery = { _id: null };
     }
   };
+
+  // Sanitize query: remove MongoDB operators that could lead to NoSQL injection
+  userQuery = sanitizeQuery(userQuery);
 
   debug('JSON Query passed: ', userQuery);
 
@@ -178,7 +197,7 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(

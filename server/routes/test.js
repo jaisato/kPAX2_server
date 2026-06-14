@@ -13,7 +13,8 @@ router.get('/another', function(req, res, next) {
 
 /* GET another page with params. */
 router.get('/another/:Autname', function(req, res, next) {
-  var auth = req.params.Autname;
+  // Sanitize user input to prevent XSS - strip HTML tags
+  var auth = req.params.Autname.replace(/<[^>]*>/g, '');
   res.render('test2', { title: 'Another Page  With params in Action', author: auth });
 });
 

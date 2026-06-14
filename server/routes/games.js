@@ -9,6 +9,22 @@ const mongo = require('../lib/mongo');
 const debug = require('debug')('app:games');
 
 /**
+ * Sanitize a MongoDB query object to prevent NoSQL injection.
+ * Removes dangerous operators like $where, $expr, $function, etc.
+ */
+function sanitizeQuery(query) {
+  if (typeof query !== 'object' || query === null) return {};
+  var dangerousKeys = ['$where', '$expr', '$function', '$accumulator'];
+  var sanitized = {};
+  Object.keys(query).forEach(function (key) {
+    if (dangerousKeys.indexOf(key) === -1) {
+      sanitized[key] = query[key];
+    }
+  });
+  return sanitized;
+}
+
+/**
  * Add a new game
  */
 router.post('/:id', function (req, res) {
@@ -90,6 +106,9 @@ router.get('/list', function (req, res, next) {
       gameQuery = { _id: null };
     }
   };
+
+  // Sanitize query: remove MongoDB operators that could lead to NoSQL injection
+  gameQuery = sanitizeQuery(gameQuery);
 
   debug('JSON Query passed: ', gameQuery);
 

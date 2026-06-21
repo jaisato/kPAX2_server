@@ -6,6 +6,52 @@ const utils = require('../lib/utils');
 
 const debug = require('debug')('app:user');
 
+// Allowed query fields for the users collection (whitelist)
+const ALLOWED_USER_QUERY_FIELDS = ['login', 'name', 'status', 'created_at', 'updated_at'];
+
+/**
+ * Sanitize a user-provided query object to prevent NoSQL injection.
+ * Only allows whitelisted field names and rejects any keys starting with '$'.
+ */
+function sanitizeQuery(rawQuery) {
+  if (typeof rawQuery !== 'object' || rawQuery === null || Array.isArray(rawQuery)) {
+    return null;
+  }
+
+  var sanitized = {};
+  var keys = Object.keys(rawQuery);
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+
+    // Reject any top-level MongoDB operators (e.g. $where, $regex, $gt, etc.)
+    if (key.charAt(0) === '$') {
+      return null;
+    }
+
+    // Only allow whitelisted fields
+    if (ALLOWED_USER_QUERY_FIELDS.indexOf(key) === -1) {
+      return null;
+    }
+
+    var value = rawQuery[key];
+
+    // If the value is an object, reject any MongoDB operators inside it
+    if (typeof value === 'object' && value !== null) {
+      var valueKeys = Object.keys(value);
+      for (var j = 0; j < valueKeys.length; j++) {
+        if (valueKeys[j].charAt(0) === '$') {
+          return null;
+        }
+      }
+    }
+
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
 /**
  * Add a new user
  */
@@ -53,9 +99,9 @@ router.post('/', function (req, res) {
 });
 
 /**
- * list users under a FREE condition
- * if no parameter passed, all users ar listed
- * the 'q' query must be a valid JSON query condition in MongoBD format
+ * list users under a validated condition
+ * if no parameter passed, all users are listed
+ * the 'q' query must be a valid JSON query condition using only whitelisted fields
  * endpoint method: GET
  * example : /users/list?q={"status":3}
  */
@@ -72,9 +118,16 @@ router.get('/list', function (req, res) {
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
-      userQuery = { _id: null };
+      return res.status(400).send('Bad query format');
     }
-  };
+
+    // Sanitize the query to prevent NoSQL injection
+    userQuery = sanitizeQuery(userQuery);
+    if (userQuery === null) {
+      debug(' Query rejected: contains disallowed fields or operators');
+      return res.status(400).send('Invalid query: only allowed fields are ' + ALLOWED_USER_QUERY_FIELDS.join(', '));
+    }
+  }
 
   debug('JSON Query passed: ', userQuery);
 
@@ -99,39 +152,6 @@ router.get('/list', function (req, res) {
     }
   );
 });
-
-// DELETE
-// /**
-//  * list users (all users in the system, whatever is them status )
-//  * URL example:  METHOD: GET
-//  * http://localhost:3000/user/lista
-//  */
-// router.get('/listall', function (req, res, next) {
-//   // find user
-//   req.db.collection('users').find(
-//     {},
-//     function (err, cursor) {
-//
-//       // check error
-//       if (err) {
-//         return res.status(500).send(err.message);
-//       }
-//
-//       var users = [];
-//
-//       // walk cursor
-//       cursor.each(function (err, doc) {
-//
-//         // end
-//         if (doc == null) {
-//           return res.jsonp(users);
-//         }
-//
-//         users.push(doc);
-//       });
-//     }
-//   );
-// });
 
 /**
  * list ONE user (by Id of the user)

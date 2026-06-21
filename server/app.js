@@ -37,7 +37,7 @@ MongoClient.connect(url, function (err, db) {
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -60,6 +60,8 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+// TODO: In production, restrict Access-Control-Allow-Origin to specific trusted domains
+// instead of using '*'. Example: res.header('Access-Control-Allow-Origin', 'https://yourdomain.com');
 app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');

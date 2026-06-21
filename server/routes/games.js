@@ -8,6 +8,52 @@ const mongo = require('../lib/mongo');
 
 const debug = require('debug')('app:games');
 
+// Allowed query fields for the games collection (whitelist)
+const ALLOWED_GAME_QUERY_FIELDS = ['name', 'category', 'owner', 'status', 'nlikes', 'tags', 'created_at', 'updated_at', 'guid'];
+
+/**
+ * Sanitize a user-provided query object to prevent NoSQL injection.
+ * Only allows whitelisted field names and rejects any keys starting with '$'.
+ */
+function sanitizeQuery(rawQuery) {
+  if (typeof rawQuery !== 'object' || rawQuery === null || Array.isArray(rawQuery)) {
+    return null;
+  }
+
+  var sanitized = {};
+  var keys = Object.keys(rawQuery);
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+
+    // Reject any top-level MongoDB operators (e.g. $where, $regex, $gt, etc.)
+    if (key.charAt(0) === '$') {
+      return null;
+    }
+
+    // Only allow whitelisted fields
+    if (ALLOWED_GAME_QUERY_FIELDS.indexOf(key) === -1) {
+      return null;
+    }
+
+    var value = rawQuery[key];
+
+    // If the value is an object, reject any MongoDB operators inside it
+    if (typeof value === 'object' && value !== null) {
+      var valueKeys = Object.keys(value);
+      for (var j = 0; j < valueKeys.length; j++) {
+        if (valueKeys[j].charAt(0) === '$') {
+          return null;
+        }
+      }
+    }
+
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
 /**
  * Add a new game
  */
@@ -67,11 +113,11 @@ router.post('/:id', function (req, res) {
 });
 
 /**
- * list games under a FREE condition
- * if no parameter passed, all games ar listed
- * the 'q' query must be a valid JSON query condition in MongoBD format
+ * list games under a validated condition
+ * if no parameter passed, all games are listed
+ * the 'q' query must be a valid JSON query condition using only whitelisted fields
  * endpoint method: GET
- * example : /games/list?q={"nlikes":{"$lt":15}}
+ * example : /games/list?q={"nlikes":5}
  */
 router.get('/list', function (req, res, next) {
   debug('GET /game/list');
@@ -87,9 +133,16 @@ router.get('/list', function (req, res, next) {
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
-      gameQuery = { _id: null };
+      return res.status(400).send('Bad query format');
     }
-  };
+
+    // Sanitize the query to prevent NoSQL injection
+    gameQuery = sanitizeQuery(gameQuery);
+    if (gameQuery === null) {
+      debug(' Query rejected: contains disallowed fields or operators');
+      return res.status(400).send('Invalid query: only allowed fields are ' + ALLOWED_GAME_QUERY_FIELDS.join(', '));
+    }
+  }
 
   debug('JSON Query passed: ', gameQuery);
 
@@ -113,32 +166,6 @@ router.get('/list', function (req, res, next) {
     }
   );
 });
-
-//DEL
-// /**
-//  * list ONE game (by Id of the Game)
-//  * parameter: game
-//  * GET /game/:game
-//  */
-// router.get('/:id', function (req, res, next) {
-//   var id = req.params.id;
-//   debug(id);
-
-//   // find game
-//   req.db.collection('games').findOne(
-//     { guid: id },
-//     function (err, doc) {
-//       // if error, return 500
-//       if (err) return res.status(500).send('Error when db.findOne ' + err.message);
-
-//       // Game not found
-//       if (!doc) return res.status(404).send('Not found');
-
-//       debug(doc);
-//       return res.jsonp(doc);
-//     }
-//   );
-// });
 
 /**
  * list ONE game (by Id of the Game)
@@ -357,4 +384,3 @@ function sendError (error, message, res) {
 }
 
 module.exports = router;
-  

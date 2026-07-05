@@ -1,4 +1,3 @@
-
 # kPAX2_server
 
 This makes the kPAX2 server run by default in port 8081
@@ -31,13 +30,13 @@ You can specify parameters using local environment
 For stating the server:
 
 ```bash
-$ MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ MONGODB_URL="mongodb://username:password@your-host:port/kpax2" bin/www
 ```
 
 For stating the server with debug
 
 ```bash
-$ DEBUG=* MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ DEBUG=* MONGODB_URL="mongodb://username:password@your-host:port/kpax2" bin/www
 ```
 
 ### Change the port  number

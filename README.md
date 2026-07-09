@@ -1,7 +1,12 @@
-
 # kPAX2_server
 
 This makes the kPAX2 server run by default in port 8081
+
+> **Security note:** a real MongoDB connection string (user, password and host) was
+> previously committed to this file. Even though it has been removed, it is still
+> visible in the git history, so those credentials must be considered compromised:
+> rotate or disable them on the database server. Never commit real credentials; pass
+> them through the `MONGODB_URL` environment variable instead.
 
 ## Execute
 
@@ -27,17 +32,18 @@ You can specify parameters using local environment
 
 1. MONGODB_URL: the mongodb connection URL
 2. DEBUG: the prefix for debugin (ex. DEBUG=app*)
+3. CORS_ORIGIN: the allowed CORS origin (defaults to `*`)
 
 For stating the server:
 
 ```bash
-$ MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ MONGODB_URL="mongodb://<user>:<password>@<host>:<port>/kpax2" bin/www
 ```
 
 For stating the server with debug
 
 ```bash
-$ DEBUG=* MONGODB_URL="mongodb://readwrite:1234@ds021462.mlab.com:21462/kpax2" bin/www
+$ DEBUG=* MONGODB_URL="mongodb://<user>:<password>@<host>:<port>/kpax2" bin/www
 ```
 
 ### Change the port  number

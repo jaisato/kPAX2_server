@@ -60,8 +60,10 @@ app.use(function (req, res, next) {
 });
 
 // CORS Enabled
+// Allowed origin is configurable via the CORS_ORIGIN environment variable;
+// it defaults to '*' (any origin), so set it to a specific origin in production.
 app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });

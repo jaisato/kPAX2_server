@@ -178,7 +178,7 @@ router.delete('/:id', function (req, res) {
       if (err) return res.status(500).send('Error when users.findOne ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!doc) return res.status(404).send('Not found');
 
       // game found -- UPdate status: set to 3 => Deleted
       req.db.collection('users').update(

@@ -84,6 +84,12 @@ router.get('/list', function (req, res, next) {
 
     try {
       gameQuery = JSON.parse(req.query.q);
+
+      // reject queries that try to run arbitrary JS server-side ($where, ...)
+      if (utils.hasDangerousMongoOperator(gameQuery)) {
+        debug(' Dangerous operator in query ($where/$function), NO Query Done!: NO records listed');
+        gameQuery = { _id: null };
+      }
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');

@@ -38,6 +38,33 @@ internals.checkParams = function (req, params) {
   return ret;
 };
 
+/**
+ * Recursively checks whether a (user-supplied) Mongo query object contains
+ * a `$where` clause (or any operator that would let arbitrary JavaScript be
+ * executed server-side, e.g. `$where`/`$function`).
+ *
+ * Query params such as `?q={"nlikes":{"$lt":15}}` are intentionally
+ * forwarded as raw MongoDB filters, but `$where` lets an attacker run
+ * arbitrary JS in the database process (NoSQL injection / RCE), so it must
+ * always be rejected before the query reaches the driver.
+ */
+internals.hasDangerousMongoOperator = function (value) {
+  if (Array.isArray(value)) {
+    return value.some(internals.hasDangerousMongoOperator);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value).some(function (key) {
+      if (key === '$where' || key === '$function' || key === '$accumulator') {
+        return true;
+      }
+      return internals.hasDangerousMongoOperator(value[key]);
+    });
+  }
+
+  return false;
+};
+
 // Aux Function
 // TODO: parse query string
 internals.isJsonString = function (str) {

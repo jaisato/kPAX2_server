@@ -69,6 +69,12 @@ router.get('/list', function (req, res) {
 
     try {
       userQuery = JSON.parse(req.query.q);
+
+      // reject queries that try to run arbitrary JS server-side ($where, ...)
+      if (utils.hasDangerousMongoOperator(userQuery)) {
+        debug(' Dangerous operator in query ($where/$function), NO Query Done!: NO records listed');
+        userQuery = { _id: null };
+      }
     }
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');

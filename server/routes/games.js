@@ -191,11 +191,23 @@ router.delete('/:id', function (req, res) {
       if (!doc) return res.status(404).send('Not Found');
 
       // game found -- UPdate status: set to 3 => Deleted
-      req.db.collection('games').update(
+      //
+      // This was update(selector, doc, upsert, multi, cb) - the driver 1.x
+      // positional form. The pinned driver 2.x reads the third argument as
+      // `options` and the fourth as `callback`, so `true` was handed over as the
+      // whole options object and the callback below was never a function the
+      // driver would call. The update ran and returned a promise nobody
+      // awaited, and since res.jsonp() lives in that callback the response was
+      // never sent: the request simply hung until the client gave up. The game
+      // did get marked deleted, so the caller had no way to tell a timeout from
+      // a failure.
+      //
+      // updateOne with a real options object: guid identifies one game, and
+      // upsert has no business here - the document was just confirmed to exist.
+      req.db.collection('games').updateOne(
         { guid: id },
-        { $set: { status: 3 } },
-        true,
-        true,
+        { $set: { status: 3, updated_at: new Date() } },
+        {},
         function (err, doc) {
           // if error, return 500
           if (err) return res.status(500).send('Error when db.update ' + err.message);
@@ -258,14 +270,17 @@ router.post('/:game/like', function (req, res) {
           // Already marked +1
           if (docLike) return res.jsonp(doc);
 
-          req.db.collection('games').update(
+          // Same driver 1.x positional call as in DELETE /:id above: driver 2.x
+          // takes the third argument as `options` and the fourth as `callback`,
+          // so this callback never ran and the response was never sent. The
+          // like was recorded and the request hung.
+          req.db.collection('games').updateOne(
             { guid: gameId },
             {
               $inc: { nlikes: +1 },
               $push: { ulike: { uid: userId, date: new Date() } }
             },
-            true,
-            true,
+            {},
             function (err, doc) {
               // if error, return 500
               if (err) return res.status(500).send('Error when db.update ' + err.message);

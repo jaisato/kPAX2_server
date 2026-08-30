@@ -37,7 +37,12 @@ MongoClient.connect(url, function (err, db) {
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'jade');
+// Pug, not Jade. The jade package was last released in 2016 and is
+// where most of this project's npm advisories came from: it pulls in
+// transformers, which pulls in a vulnerable uglify-js. Pug is the same
+// template language under its current name, so the views only changed
+// extension.
+app.set('view engine', 'pug');
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));

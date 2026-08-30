@@ -13,7 +13,10 @@ module.exports = internals;
 
 internals.ApiError = function (status, message) {
   Error.captureStackTrace(this, this.constructor);
-  this.status = this.constructor.status;
+  // `this.constructor.status` reads a property off the constructor function,
+  // which nothing sets - so every ApiError carried status undefined and the
+  // error handlers fell back to 500 whatever the caller asked for.
+  this.status = status;
   this.message = message;
 };
 

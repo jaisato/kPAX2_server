@@ -74,6 +74,17 @@ router.get('/list', function (req, res) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
       userQuery = { _id: null };
     }
+
+    // The whole point of this endpoint is that the caller writes the filter, so
+    // it is a Mongo query straight from the query string by design. What it must
+    // not be is a way to run code: $where and $function hand the server a
+    // JavaScript expression to evaluate, which on a server with them enabled is
+    // remote execution inside the database process, not a filter. They are also
+    // the one part of the query language that nothing here needs - every
+    // documented use ({"status":3} and the like) is plain field matching.
+    if (utils.containsCodeOperator(userQuery)) {
+      return res.status(400).send('Bad parameters');
+    }
   };
 
   debug('JSON Query passed: ', userQuery);
@@ -169,33 +180,46 @@ router.get('/:id', function (req, res, next) {
 router.delete('/:id', function (req, res) {
   var userId = req.params.id;
 
-  // find game
-  req.db.collection('users').findOne(
-    { _id: new ObjectId(userId) },
-    function (err, doc) {
+  // new ObjectId() throws on anything that is not a 24-character hex string, so
+  // a mistyped id used to come back as a 500 instead of a 400.
+  if (!ObjectId.isValid(userId)) {
+    return res.status(400).send('Bad parameters');
+  }
 
+  // This endpoint never worked. Three separate faults, all in the few lines
+  // this replaces:
+  //
+  // 1. The not-found test was inverted - `if (doc) return 404` - so every user
+  //    that actually existed was reported as missing and nothing was ever
+  //    soft-deleted. Compare GET /:id directly above, which has it the right
+  //    way round.
+  // 2. Being inverted, the update only ran for ids that matched nothing, and it
+  //    was called as update(selector, doc, upsert, multi, cb) - the driver 1.x
+  //    positional form. Driver 2.x reads that third argument as `options` and
+  //    the fourth as `callback`, so `upsert: true` was passed as the whole
+  //    options object and the real callback never arrived. The one path that
+  //    could run was an upsert for a user that did not exist, which is a write
+  //    that invents a record rather than deleting one.
+  // 3. The response echoed the update result, not the user.
+  //
+  // findOneAndUpdate does the read and the write as one atomic operation, so
+  // there is also no longer a window between "does this user exist" and
+  // "mark it deleted".
+  req.db.collection('users').findOneAndUpdate(
+    { _id: new ObjectId(userId) },
+    { $set: { status: 3, updated_at: new Date() } },
+    { returnOriginal: false },
+    function (err, result) {
       // if error, return 500
-      if (err) return res.status(500).send('Error when users.findOne ' + err.message);
+      if (err) return res.status(500).send('Error when users.findOneAndUpdate ' + err.message);
 
       // User not found
-      if (doc) return res.status(404).send('Not found');
+      if (!result || !result.value) return res.status(404).send('Not found');
 
-      // game found -- UPdate status: set to 3 => Deleted
-      req.db.collection('users').update(
-        { _id: new ObjectId(userId) },
-        { $set: { status: 3 } },
-        true,
-        true,
-        function (err, doc) {
-          // if error, return 500
-          if (err) return res.status(500).send('Error when users.update ' + err.message);
-
-          debug(doc);
-          res.jsonp(doc);
-        }
-      );
+      debug(result.value);
+      res.jsonp(result.value);
     }
-  ); // find one
+  );
 });
 
 module.exports = router;

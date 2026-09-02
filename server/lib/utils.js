@@ -54,3 +54,44 @@ internals.isJsonString = function (str) {
 
   return true;
 };
+
+/**
+ * Operators that make Mongo evaluate JavaScript rather than match fields.
+ *
+ * All three take an expression the server runs - $where a predicate, $function
+ * and $accumulator a function body - so on a deployment where they are enabled
+ * that is code execution inside the database process. Endpoints that let a
+ * caller supply a raw query need to refuse them.
+ *
+ * $expr is deliberately NOT here. It evaluates ordinary aggregation
+ * expressions and runs no JavaScript of its own, so blocking it only removed
+ * legitimate queries this endpoint is documented to accept - comparing two
+ * fields, say, as in {"$expr": {"$gt": ["$spent", "$budget"]}}. The one way it
+ * could carry code is by nesting one of the three above, and the traversal
+ * below already catches those at any depth.
+ */
+var CODE_OPERATORS = ['$where', '$function', '$accumulator'];
+
+/**
+ * Whether a parsed query object contains a code-executing operator anywhere,
+ * however deeply nested - `{"$or": [{"$where": "..."}]}` hides it one level
+ * down, so a check on the top-level keys alone would miss it.
+ */
+internals.containsCodeOperator = function (value) {
+
+  if (Array.isArray(value)) {
+    return value.some(internals.containsCodeOperator);
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  return Object.keys(value).some(function (key) {
+    if (CODE_OPERATORS.indexOf(key) !== -1) {
+      return true;
+    }
+
+    return internals.containsCodeOperator(value[key]);
+  });
+};

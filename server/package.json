@@ -6,10 +6,10 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
-    "body-parser": "^1.20.6",
+    "body-parser": "^2.3.0",
     "cookie-parser": "^1.4.7",
     "debug": "^4.4.3",
-    "express": "^4.22.2",
+    "express": "^5.2.1",
     "mongodb": "^2.2.36",
     "morgan": "^1.11.0",
     "pug": "^3.0.3",

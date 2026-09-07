@@ -69,6 +69,21 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// CORS Enabled
+//
+// This sits ahead of the readiness guard below on purpose. The guard answers
+// 503 by short-circuiting, so anything registered after it is skipped for that
+// response - and a 503 without Access-Control-Allow-Origin is not a 503 as far
+// as a browser is concerned: the fetch rejects as an opaque CORS failure and
+// the caller never sees the status, let alone the "try again" it is meant to
+// convey. Setting the headers first means every response carries them,
+// short-circuited or not.
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 // first thing to do, add db to the request
 //
 // The connection above is asynchronous while the server starts listening
@@ -85,13 +100,6 @@ app.use(function (req, res, next) {
   }
 
   req.db = database;
-  next();
-});
-
-// CORS Enabled
-app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
 

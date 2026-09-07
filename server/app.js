@@ -23,15 +23,26 @@ if (process.env.MONGODB_URL) {
 }
 
 // connect to mongodb
+//
+// Driver 2.x is pinned to bson <= 1.1.3 and mongodb-core <= 3.1.1, which carry
+// the critical BSON deserialization-of-untrusted-data advisories; 3.7.4 clears
+// them and keeps the callback API every route here is written against.
+//
+// The one behaviour change that matters: in 2.x this callback received the
+// database, in 3.x it receives the *client*, and the database comes from
+// client.db(). Assigning the client straight to `database` would have left
+// every route calling database.collection() on an object that has no such
+// method. The database name stays in the connection string, so db() takes no
+// argument.
 debug('Connecting to Mongodb', url);
-MongoClient.connect(url, function (err, db) {
+MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function (err, client) {
   if (err) {
     debug('ERROR', err);
     throw err;
   }
 
   // async!
-  database = db;
+  database = client.db();
   debug('Successfully connected to the database');
 });
 
@@ -58,16 +69,37 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// first thing to do, add db to the request
-app.use(function (req, res, next) {
-  req.db = database;
-  next();
-});
-
 // CORS Enabled
+//
+// This sits ahead of the readiness guard below on purpose. The guard answers
+// 503 by short-circuiting, so anything registered after it is skipped for that
+// response - and a 503 without Access-Control-Allow-Origin is not a 503 as far
+// as a browser is concerned: the fetch rejects as an opaque CORS failure and
+// the caller never sees the status, let alone the "try again" it is meant to
+// convey. Setting the headers first means every response carries them,
+// short-circuited or not.
 app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
+// first thing to do, add db to the request
+//
+// The connection above is asynchronous while the server starts listening
+// immediately, so there is a window at boot where `database` is still null.
+// Requests arriving in it used to reach the routes anyway and blow up on
+// req.db.collection() with a TypeError, which the error handler then reported
+// as a generic 500 - indistinguishable from a real server fault. 503 is what
+// "not ready yet, try again" actually means, and it keeps the routes free of
+// null checks.
+app.use(function (req, res, next) {
+  if (!database) {
+    debug('Request received before the database connection was ready');
+    return res.status(503).send('Service Unavailable: database connection not ready');
+  }
+
+  req.db = database;
   next();
 });
 

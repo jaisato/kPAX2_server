@@ -46,8 +46,9 @@ router.post('/:id', function (req, res) {
         created_at: game.updated_at
       };
 
-      // create game
-      req.db.collection('games').update(
+      // create game. guid identifies a single game, so this is updateOne like
+      // the other write paths here - update() is the removed legacy helper.
+      req.db.collection('games').updateOne(
         { guid: id },
         {
           $set: game,
@@ -88,6 +89,18 @@ router.get('/list', function (req, res, next) {
     catch (e) {
       debug(' Bad JSON format, NO Query Done!: NO records listed');
       gameQuery = { _id: null };
+    }
+
+    // Same reasoning as /user/list, which already guards this: the caller
+    // writing the filter is the point of the endpoint, but $where, $function
+    // and $accumulator do not filter - they hand the database an expression to
+    // evaluate, which on a deployment with server-side JavaScript enabled is
+    // execution inside the database process. This endpoint was left unguarded
+    // when /user/list was fixed, so /game/list?q={"$where":"..."} still reached
+    // the driver. Every documented use here ({"nlikes":{"$lt":15}} and the
+    // like) is plain field matching, so nothing legitimate needs them.
+    if (utils.containsCodeOperator(gameQuery)) {
+      return res.status(400).send('Bad parameters');
     }
   };
 
@@ -338,13 +351,19 @@ router.post('/:game/unlike', function (req, res) {
           if (!docLike) return res.jsonp(doc);
 
           // var userDateInfo = {'uid': userId, 'date': new Date()};
-          req.db.collection('games').update(
+          //
+          // The sibling like/delete routes were moved off the legacy update()
+          // helper; this one was left behind. It also answered its own TODO
+          // wrongly: guid identifies exactly one game, so `multi: true` could
+          // only ever match that same single document - it never did anything
+          // except ask the server to keep looking. updateOne says what is meant.
+          req.db.collection('games').updateOne(
             { guid: gameId },
             {
               $inc: { nlikes: -1 },
               $pull: { ulike: { uid: userId } }
             },
-            { multi: true }, // TODO: why multi?
+            {},
             function (err, doc) {
               // if error, return 500
               if (err) return res.status(500).send('Error when db.update ' + err.message);

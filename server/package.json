@@ -14,5 +14,19 @@
     "morgan": "^1.11.0",
     "pug": "^3.0.3",
     "serve-favicon": "^2.5.1"
-  }
+  },
+  "overrides": {
+    "qs": "^6.16.0",
+    "bson": "^1.1.6"
+  },
+  "//": [
+    "overrides.qs: express 4 and body-parser 1 pin qs to ~6.15, and 6.15.3 is the",
+    "last release of two advisories (array-limit bypass GHSA-x5fp-wj9c-mxmx, and",
+    "isBuffer DoS GHSA-4mjr-xmp4-gh2g) fixed in 6.16.0, which no express 4 release",
+    "requires yet. npm's only other remedy is `npm audit fix --force`, which",
+    "installs express 5 - a breaking change this app has not been moved to. The",
+    "query parser is what every request goes through, so the patched line is",
+    "forced for every dependant. Remove this once `npm ls qs` stops reporting",
+    "\"overridden\"."
+  ]
 }

@@ -38,7 +38,7 @@ router.post('/', function (req, res) {
       };
 
       // create user
-      req.db.collection('users').insert(
+      req.db.collection('users').insertOne(
         user,
         function (err, doc) {
           // if error, return 500

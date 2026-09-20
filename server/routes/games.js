@@ -47,7 +47,7 @@ router.post('/:id', function (req, res) {
       };
 
       // create game
-      req.db.collection('games').update(
+      req.db.collection('games').updateOne(
         { guid: id },
         {
           $set: game,
@@ -350,13 +350,16 @@ router.post('/:game/unlike', function (req, res) {
           if (!docLike) return res.jsonp(doc);
 
           // var userDateInfo = {'uid': userId, 'date': new Date()};
-          req.db.collection('games').update(
+          // `{ multi: true }` is not an option updateOne accepts; updateMany
+          // is the 3.x spelling of the same intent. `guid` identifies one
+          // game, so in practice this still touches a single document.
+          req.db.collection('games').updateMany(
             { guid: gameId },
             {
               $inc: { nlikes: -1 },
               $pull: { ulike: { uid: userId } }
             },
-            { multi: true }, // TODO: why multi?
+            {},
             function (err, doc) {
               // if error, return 500
               if (err) return res.status(500).send('Error when db.update ' + err.message);

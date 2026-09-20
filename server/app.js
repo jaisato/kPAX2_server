@@ -23,17 +23,27 @@ if (process.env.MONGODB_URL) {
 }
 
 // connect to mongodb
+//
+// Driver 3.x hands the callback a CLIENT, where 2.x handed it the Db
+// directly. Every route reaches the database through `req.db.collection(...)`,
+// so what has to be stored here is still a Db: `client.db()` with no argument
+// resolves the one named in the connection string. useUnifiedTopology opts
+// into the rewritten connection monitor, which is the default from 4.x on.
 debug('Connecting to Mongodb', url);
-MongoClient.connect(url, function (err, db) {
-  if (err) {
-    debug('ERROR', err);
-    throw err;
-  }
+MongoClient.connect(
+  url,
+  { useNewUrlParser: true, useUnifiedTopology: true },
+  function (err, client) {
+    if (err) {
+      debug('ERROR', err);
+      throw err;
+    }
 
-  // async!
-  database = db;
-  debug('Successfully connected to the database');
-});
+    // async!
+    database = client.db();
+    debug('Successfully connected to the database');
+  }
+);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

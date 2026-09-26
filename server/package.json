@@ -2,10 +2,6 @@
   "name": "KPAX2_server",
   "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": ">=16.14.0",
-    "npm": ">=8.3.0"
-  },
   "scripts": {
     "start": "node ./bin/www"
   },
@@ -40,8 +36,9 @@
     "morgan: 1.12.0 closes GHSA-jxfw-x594-9x9m, log forging through unescaped",
     "Unicode line separators in the access log. Advisory published after this",
     "branch opened, so it is a deliberate bump here rather than part of the merge.",
-    "engines/npm: overrides is only honoured from npm 8.3.0. On an older npm the",
-    "field is ignored silently and both advisories above stay open, so the floor is",
-    "declared here and enforced with engine-strict in .npmrc."
+    "overrides.qs is inherited from #12 and is now redundant: express 4.22.3 and",
+    "body-parser 1.20.8 require qs ~6.16.0 themselves, so the patched line resolves",
+    "without it. Left in place deliberately - removing a security override is",
+    "master's call, not a driver PR's."
   ]
 }

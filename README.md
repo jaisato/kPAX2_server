@@ -79,12 +79,12 @@ tiene método `collection()`, así que dejar `database = db` hace que cada ruta
 falle con `TypeError: ... .collection is not a function`. La base se obtiene
 ahora con `client.db()`.
 
-Aparte del driver, `qs` está fijado a 6.16.0 mediante `overrides`, una versión
-que express 4 no puede resolver por su cuenta. Eso **exige npm >= 8.3.0**: con un
-npm anterior el campo se ignora en silencio y los avisos siguen ahí. Está
-declarado en `engines` y forzado con `engine-strict`; ver `INSTALL.md`. `morgan`
-está en 1.12.0, que cierra GHSA-jxfw-x594-9x9m (log forging por separadores de
-línea Unicode sin escapar).
+Aparte del driver, `qs` está fijado a 6.16.0 mediante el `overrides` que
+introdujo #12. Hoy es redundante: express 4.22.3 y body-parser 1.20.8 ya exigen
+`qs ~6.16.0` por su cuenta, así que la versión parcheada se resuelve igual sin
+el `overrides`. Se deja donde está porque quitar un suelo de seguridad es una
+decisión de `master`, no de este PR. `morgan` está en 1.12.0, que cierra
+GHSA-jxfw-x594-9x9m (log forging por separadores de línea Unicode sin escapar).
 
 Sigue sin haber suite de pruebas, así que todo esto se comprobó con
 verificaciones puntuales sobre el driver y los caminos que tocan las rutas, no

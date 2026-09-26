@@ -5,9 +5,16 @@ Per instalar el servidor simplement cal seguir les següents instruccions:
 ## Previs:
 El sistema en el que volem muntar el servidor ha de tenir instal·lat i en funcionnament :
 
-1. NodeJs  v6.0.0 o superior
-2. npm (Node Package Manager) v3.8.6 o superior
+1. NodeJs  v16.14.0 o superior
+2. npm (Node Package Manager) v8.3.0 o superior
 3. Servidor de mongoDB (mongod v.2.6.10 o superior) si la base de dades ha de ser local
+
+> **Per què npm 8.3.0.** Les correccions de seguretat de `qs` i `bson`
+> s'apliquen amb el camp `overrides` del `package.json`, que npm només té en
+> compte a partir de la 8.3.0; un npm anterior l'ignora en silenci i deixa
+> instal·lades les versions vulnerables. Node 16.14.0 és la primera versió que
+> porta un npm prou nou, i `server/.npmrc` activa `engine-strict` perquè un npm
+> més antic es negui a instal·lar en comptes de fer-ho a mitges.
 
 
 ## Instal·lació del servidor :

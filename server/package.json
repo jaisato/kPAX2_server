@@ -15,11 +15,33 @@
     "debug": "^4.4.3",
     "express": "^4.22.2",
     "mongodb": "^3.7.4",
-    "morgan": "^1.11.0",
+    "morgan": "^1.12.0",
     "pug": "^3.0.3",
     "serve-favicon": "^2.5.1"
   },
   "overrides": {
-    "qs": "^6.16.0"
-  }
+    "qs": "^6.16.0",
+    "bson": "^1.1.6"
+  },
+  "//": [
+    "overrides.qs: express 4 and body-parser 1 pin qs to ~6.15, and 6.15.3 is the",
+    "last release of two advisories (array-limit bypass GHSA-x5fp-wj9c-mxmx, and",
+    "isBuffer DoS GHSA-4mjr-xmp4-gh2g) fixed in 6.16.0, which no express 4 release",
+    "requires yet. npm's only other remedy is `npm audit fix --force`, which",
+    "installs express 5 - a breaking change this app has not been moved to. The",
+    "query parser is what every request goes through, so the patched line is",
+    "forced for every dependant. Remove this once `npm ls qs` stops reporting",
+    "\"overridden\".",
+    "overrides.bson: kept from #12, where it closed the deserialization criticals",
+    "without moving the driver. mongodb 3.7.4 already resolves bson 1.1.6 on its",
+    "own, so it is redundant now rather than wrong - left in place because it is a",
+    "security floor and removing one should be a deliberate decision, not a side",
+    "effect of a merge.",
+    "morgan: 1.12.0 closes GHSA-jxfw-x594-9x9m, log forging through unescaped",
+    "Unicode line separators in the access log. Advisory published after this",
+    "branch opened, so it is a deliberate bump here rather than part of the merge.",
+    "engines/npm: overrides is only honoured from npm 8.3.0. On an older npm the",
+    "field is ignored silently and both advisories above stay open, so the floor is",
+    "declared here and enforced with engine-strict in .npmrc."
+  ]
 }

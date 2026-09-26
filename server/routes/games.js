@@ -91,14 +91,14 @@ router.get('/list', function (req, res, next) {
       gameQuery = { _id: null };
     }
 
-    // Same reasoning as /user/list, which already guards this: the caller
-    // writing the filter is the point of the endpoint, but $where, $function
-    // and $accumulator do not filter - they hand the database an expression to
-    // evaluate, which on a deployment with server-side JavaScript enabled is
-    // execution inside the database process. This endpoint was left unguarded
-    // when /user/list was fixed, so /game/list?q={"$where":"..."} still reached
-    // the driver. Every documented use here ({"nlikes":{"$lt":15}} and the
-    // like) is plain field matching, so nothing legitimate needs them.
+    // Same guard as GET /users/list. This endpoint takes a Mongo query straight
+    // from the query string by design - that is what it is for - but $where,
+    // $function and $accumulator do not filter, they hand the server a
+    // JavaScript expression to evaluate, which on a deployment with them
+    // enabled is code execution inside the database process. The users endpoint
+    // was given this check and this one was not, so /games/list was still
+    // reachable the same way. Nothing documented here needs them: every example
+    // ({"nlikes":{"$lt":15}} and the like) is plain field matching.
     if (utils.containsCodeOperator(gameQuery)) {
       return res.status(400).send('Bad parameters');
     }

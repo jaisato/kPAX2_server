@@ -6,9 +6,16 @@ To install the server simply follow this instructions
 
 The system in which the server will be installed, must have the following components working properly:
 
-1. NodeJs v6.0.0 or hihger
-2. npm (Node Packege Manager) v3.8.6 or higher
-3. MongoDB Server (mongod v.2.6.10 or hihger, only if you want to work on a local database)
+1. NodeJs v16.14.0 or higher
+2. npm (Node Package Manager) v8.3.0 or higher
+3. MongoDB Server (mongod v.2.6.10 or higher, only if you want to work on a local database)
+
+> **Why npm 8.3.0.** The `qs` and `bson` security fixes are applied through the
+> `overrides` field in `package.json`, which npm only honours from 8.3.0 on; an
+> older npm ignores it silently and installs the vulnerable versions. Node
+> 16.14.0 is the first release that ships a new enough npm, and `server/.npmrc`
+> sets `engine-strict` so an older npm refuses to install rather than doing it
+> half-way.
 
 
 ## Server installation :

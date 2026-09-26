@@ -50,32 +50,67 @@ TODO
 
 ## Estado de las dependencias (revisión)
 
-`npm audit` pasó de **21 advisories (6 críticos)** a **3 críticos** al retirar
-`jade`, abandonado desde 2016: arrastraba `transformers` y con él una versión
-vulnerable de `uglify-js`. Las plantillas son ahora `.pug` — mismo lenguaje,
-nombre actual del paquete — y `pug` ya figuraba en `package.json`.
+`npm audit` está **limpio: 0 advisories**. Se llegó ahí en tres pasos:
 
-De esos 3 críticos ya no queda ninguno. Los tres eran deserialización de datos
-no confiables en `bson <= 1.1.3` (GHSA-4jwp-vfvf-657p y GHSA-v8w9-2789-6hhr),
-que entra por `mongodb-core`, que lo fija en `~1.0.4`. La corrección está en
-1.1.4 y **dentro de la misma rama mayor**, así que un `overrides` a `^1.1.6` la
-aplica sin tocar el driver: 1.1.6 es la última 1.x y mantiene la API que usa
-`mongodb-core@2.1.20`. Comprobado con el driver cargado —serialización y
-deserialización de ida y vuelta, fechas anidadas y `ObjectId` incluidos.
+1. Retirar `jade`, abandonado desde 2016: arrastraba `transformers` y con él una
+   versión vulnerable de `uglify-js`. Por sí solo bajó de **21 advisories (6
+   críticos)** a 3 críticos. Las plantillas son ahora `.pug` — mismo lenguaje,
+   nombre actual del paquete — y `pug` ya figuraba en `package.json`.
+2. Un `overrides` de `bson` a `^1.1.6` cerró esos 3 críticos (deserialización
+   de datos no confiables en `bson <= 1.1.3`, GHSA-4jwp-vfvf-657p y
+   GHSA-v8w9-2789-6hhr) sin tocar el driver.
+3. Subir el driver `mongodb` a la rama **3.x** (ahora `^3.7.4`) cerró el último
+   aviso, GHSA-mh5c-679w-hh4r (denegación de servicio en `mongodb < 3.1.13`).
 
-Queda **1 advisory alto**: GHSA-mh5c-679w-hh4r, denegación de servicio en
-`mongodb < 3.1.13`. Ese sí está en el propio driver y no se cierra aquí a
-propósito: el 4+ es sólo promesas y cambia `MongoClient.connect`, la forma de
-los resultados de inserción y toda la API de callbacks que usan `app.js`,
-`lib/mongo.js` y las rutas. Es una migración con su propio trabajo de
-verificación y este proyecto no tiene suite de pruebas contra la que
-comprobarla, así que hacerla a ciegas sería peor que dejarla documentada.
+### El driver 3.x
 
-También hay un `overrides` de `qs` a `^6.16.0`: express 4 y body-parser 1 lo
-fijan en `~6.15`, y las dos advisories de esa rama (GHSA-x5fp-wj9c-mxmx y
-GHSA-4mjr-xmp4-gh2g) se corrigen en 6.16.0, que ninguna versión de express 4
-exige todavía. La única alternativa que ofrece npm es subir a express 5, que es
-un cambio con rotura.
+Esta sección decía antes que el driver no se actualizaría: el 4+ es sólo
+promesas y obligaría a reescribir toda la API de callbacks que usan `app.js`,
+`lib/mongo.js` y las rutas. Eso sigue siendo cierto **para el 4+**, pero pasaba
+por alto la rama 3.x, que cierra los mismos avisos y mantiene los callbacks:
+`find(query, cb)` sigue entregando el cursor, `cursor.each()` sigue existiendo
+y `findOne`, `updateOne` y `findOneAndUpdate` conservan la firma.
+
+El único cambio de comportamiento que importa: en 3.x el callback de
+`MongoClient.connect` recibe el **cliente**, no la base de datos. El salto de
+2.2.36 a 3.1.13 se fusionó sin ese cambio, así que el servidor arrancaba pero
+toda petición que tocaba la base de datos respondía `500` con
+`req.db.collection is not a function`. `app.js` obtiene ahora la base de datos
+con `client.db()` (el nombre va en la URL de conexión) y, mientras la conexión
+no está lista, responde `503` en lugar de dejar que las rutas revienten con un
+`db` nulo. Las cabeceras CORS se ponen antes de ese guard para que el `503`
+llegue al navegador como tal y no como un fallo opaco de CORS.
+
+En 3.x `collection.update()` queda obsoleto (y desaparece en 4.x); los dos
+sitios que aún lo usaban, `POST /game/:id` y `POST /game/:game/unlike`, pasan a
+`updateOne` como el resto de escrituras. `unlike` pasaba además `multi: true`
+contra un `guid` que identifica un único juego, así que nunca cambió nada.
+
+Sigue sin haber suite de pruebas. La actualización se comprobó arrancando el
+servidor contra un MongoDB 4.4 en Docker y ejercitando la API: `GET /game/list`
+con y sin filtro (`{"nlikes":{"$lt":15}}`), `$where` rechazado con `400` —también
+anidado en un `$or`—, `POST /game/:id`, `GET /game/:id`, `like`/`unlike`
+(idempotentes, `nlikes` sube y baja), `DELETE /game/:id`, `POST /user`,
+`GET /user/list`, `DELETE /user/:id` y el `503` con cabecera CORS mientras la
+conexión no está lista.
+
+### `overrides` y versión de npm
+
+Hay dos `overrides` en `package.json`:
+
+- `qs` a `^6.16.0`: express 4 y body-parser 1 lo fijan en `~6.15`, y las dos
+  advisories de esa rama (GHSA-x5fp-wj9c-mxmx y GHSA-4mjr-xmp4-gh2g) se corrigen
+  en 6.16.0, que ninguna versión de express 4 exige todavía. La única
+  alternativa que ofrece npm es subir a express 5, que es un cambio con rotura.
+- `bson` a `^1.1.6`: con `mongodb@3.7` ya se resuelve 1.1.6 por sí solo, así
+  que hoy es sólo un suelo; se mantiene para que los dos críticos de
+  `bson <= 1.1.3` no vuelvan a entrar por otro dependiente.
+
+`overrides` sólo lo aplica **npm >= 8.3.0**: un npm anterior ignora el campo en
+silencio y los avisos siguen ahí aunque `npm install` termine sin quejas. Por
+eso `package.json` declara `engines` (Node >= 16.14.0, la primera versión que
+trae ese npm) y `server/.npmrc` activa `engine-strict`, que convierte el aviso
+en un error de instalación. Ver `INSTALL.md`.
 
 Mientras tanto, el servidor no debe exponerse: no tiene autenticación de ningún
 tipo y responde con `Access-Control-Allow-Origin: *`.

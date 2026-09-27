@@ -17,6 +17,13 @@ router.post('/', function (req, res) {
     return res.status(400).send('Bad parameters');
   }
 
+  // login is the lookup key below. Sent as an object - {"login": {"$gt": ""}} -
+  // it becomes a Mongo operator: the duplicate check matches any user, and on
+  // an empty collection the operator object is stored as the login itself.
+  if (typeof req.body.login !== 'string' || typeof req.body.name !== 'string') {
+    return res.status(400).send('Bad parameters');
+  }
+
   // find user
   req.db.collection('users').findOne(
     { login: req.body.login },
@@ -153,6 +160,13 @@ router.get('/list', function (req, res) {
  */
 router.get('/:id', function (req, res, next) {
   var userId = req.params.id;
+
+  // Same check as DELETE /:id: new ObjectId() throws on anything that is not a
+  // valid id, which surfaced as a 500 error page (with a stack trace outside
+  // production) instead of a 400.
+  if (!ObjectId.isValid(userId)) {
+    return res.status(400).send('Bad parameters');
+  }
 
   // find user
   req.db.collection('users').findOne(

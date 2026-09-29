@@ -20,6 +20,12 @@ router.post('/:id', function (req, res) {
     return sendError(400, 'Bad parameters', res);
   }
 
+  // name is used as a query value below; an object such as {"$gt": ""} would be
+  // read as an operator and then stored as the game's name.
+  if (typeof req.body.name !== 'string') {
+    return sendError(400, 'Bad parameters', res);
+  }
+
   // find game
   req.db.collection('games').findOne(
     { name: req.body.name },
@@ -257,7 +263,12 @@ router.post('/:game/like', function (req, res) {
   debug('gameId:', gameId);
   debug('userId:', userId);
 
-  if (!req.params.game || !req.body.user) {
+  // `user` goes into the query below as a value, so it has to be one. A JSON
+  // body can make it an object instead - {"user": {"$ne": null}} - and Mongo
+  // then reads it as an operator: in /like that matches any existing like and
+  // reports the game as already liked, and in /unlike the $pull removes every
+  // user's like at once while nlikes only drops by one.
+  if (!req.params.game || typeof userId !== 'string' || !userId) {
     // 400 - bad request
     debug('** No Parameters. gameId & userId required');
     return res.status(400).send('Bad parameters. gameId & userId required ');
@@ -288,8 +299,14 @@ router.post('/:game/like', function (req, res) {
           // takes the third argument as `options` and the fourth as `callback`,
           // so this callback never ran and the response was never sent. The
           // like was recorded and the request hung.
+          //
+          // The filter repeats "not liked yet": the findOne above and this write
+          // are two round trips, and two concurrent likes from the same user
+          // both used to pass the check and both increment nlikes, pushing the
+          // user into ulike twice. With the condition in the filter the second
+          // write matches nothing.
           req.db.collection('games').updateOne(
-            { guid: gameId },
+            { guid: gameId, 'ulike.uid': { $ne: userId } },
             {
               $inc: { nlikes: +1 },
               $push: { ulike: { uid: userId, date: new Date() } }
@@ -323,7 +340,12 @@ router.post('/:game/unlike', function (req, res) {
   debug('gameId:', gameId);
   debug('userId:', userId);
 
-  if (!req.params.game || !req.body.user) {
+  // `user` goes into the query below as a value, so it has to be one. A JSON
+  // body can make it an object instead - {"user": {"$ne": null}} - and Mongo
+  // then reads it as an operator: in /like that matches any existing like and
+  // reports the game as already liked, and in /unlike the $pull removes every
+  // user's like at once while nlikes only drops by one.
+  if (!req.params.game || typeof userId !== 'string' || !userId) {
     // 400 - bad request
     debug('** No Parameters. gameId & userId required');
     return res.status(400).send('Bad parameters. gameId & userId required ');
@@ -359,8 +381,12 @@ router.post('/:game/unlike', function (req, res) {
           // identifies exactly one game, so `multi: true` could only ever
           // match that same single document - it never did anything except
           // ask the server to keep looking. updateOne says what is meant.
+          //
+          // Filtering on the like itself makes the decrement conditional on
+          // there being one to remove, so two concurrent unlikes cannot both
+          // decrement and take nlikes below the number of likes (or below 0).
           req.db.collection('games').updateOne(
-            { guid: gameId },
+            { guid: gameId, 'ulike.uid': userId },
             {
               $inc: { nlikes: -1 },
               $pull: { ulike: { uid: userId } }

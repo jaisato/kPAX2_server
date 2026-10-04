@@ -95,3 +95,56 @@ internals.containsCodeOperator = function (value) {
     return internals.containsCodeOperator(value[key]);
   });
 };
+
+/**
+ * Parse the `q` query-string parameter of the /list endpoints.
+ *
+ * Returns `{ query }` with the Mongo filter to run, or `{ error }` when the
+ * caller's filter must be refused. Missing `q` lists everything, and a `q`
+ * that is not valid JSON lists nothing - both as before.
+ *
+ * What is new is the type check. JSON.parse() happily returns a number, a
+ * string, a boolean or an array, and the driver's find() quietly drops a
+ * selector that is not an object and runs `{}` instead - so `?q=5` or
+ * `?q="x"` used to answer with every document in the collection, the exact
+ * opposite of a filter. Only a plain object is a filter.
+ */
+internals.parseListQuery = function (q) {
+
+  if (!q) {
+    return { query: {} };
+  }
+
+  var query;
+  try {
+    query = JSON.parse(q);
+  }
+  catch (e) {
+    return { query: { _id: null } };
+  }
+
+  if (query === null || typeof query !== 'object' || Array.isArray(query)) {
+    return { error: 'Bad parameters: q must be a JSON object' };
+  }
+
+  if (internals.containsCodeOperator(query)) {
+    return { error: 'Bad parameters' };
+  }
+
+  return { query: query };
+};
+
+/**
+ * A Mongo connection string with its password masked, for logging.
+ *
+ * The README starts the server with
+ * `DEBUG=* MONGODB_URL="mongodb://<user>:<password>@..."`, and the URL was
+ * logged verbatim at startup - credentials included - to wherever the debug
+ * output goes.
+ */
+internals.redactMongoUrl = function (url) {
+  return String(url).replace(/^([a-z0-9+.-]+:\/\/)([^@/]*)@/i, function (match, scheme, userinfo) {
+    var colon = userinfo.indexOf(':');
+    return scheme + (colon === -1 ? userinfo : userinfo.slice(0, colon) + ':***') + '@';
+  });
+};

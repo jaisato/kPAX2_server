@@ -86,52 +86,29 @@ router.get('/list', function (req, res, next) {
 
   debug('games/list endpoint! Query Chain passed:', req.query.q);
 
-  var gameQuery = {};
-  if (req.query.q) {
-    debug('Query condition:q=', req.query.q);
-
-    try {
-      gameQuery = JSON.parse(req.query.q);
-    }
-    catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      gameQuery = { _id: null };
-    }
-
-    // Same guard as GET /users/list. This endpoint takes a Mongo query straight
-    // from the query string by design - that is what it is for - but $where,
-    // $function and $accumulator do not filter, they hand the server a
-    // JavaScript expression to evaluate, which on a deployment with them
-    // enabled is code execution inside the database process. The users endpoint
-    // was given this check and this one was not, so /games/list was still
-    // reachable the same way. Nothing documented here needs them: every example
-    // ({"nlikes":{"$lt":15}} and the like) is plain field matching.
-    if (utils.containsCodeOperator(gameQuery)) {
-      return res.status(400).send('Bad parameters');
-    }
-  };
+  // Parsing, the object-only check and the refusal of code-executing
+  // operators ($where, $function, $accumulator - see utils.containsCodeOperator)
+  // live in utils.parseListQuery, shared by /game/list and /user/list.
+  var parsed = utils.parseListQuery(req.query.q);
+  if (parsed.error) {
+    return res.status(400).send(parsed.error);
+  }
+  var gameQuery = parsed.query;
 
   debug('JSON Query passed: ', gameQuery);
 
   // find game
-  req.db.collection('games').find(
-    gameQuery,
-    function (err, cursor) {
-      // if error, return 500
-      if (err) return res.status(500).send('Error when db.find ' + err.message);
+  // toArray rather than find(cb) + cursor.each(): each() reports a failed
+  // query as (err, undefined), and the old callback only looked at `doc == null`
+  // - so a filter the server rejected (an unknown operator, a bad $regex...)
+  // came back as 200 with an empty or partial list instead of an error.
+  req.db.collection('games').find(gameQuery).toArray(function (err, games) {
+    // if error, return 500
+    if (err) return res.status(500).send('Error when db.find ' + err.message);
 
-      // walk cursor
-      var games = [];
-      cursor.each(function (err, doc) {
-        if (doc == null) {
-          debug(games);
-          return res.jsonp(games);
-        }
-
-        games.push(doc);
-      });
-    }
-  );
+    debug(games);
+    res.jsonp(games);
+  });
 });
 
 //DEL

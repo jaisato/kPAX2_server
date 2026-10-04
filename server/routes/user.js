@@ -44,8 +44,9 @@ router.post('/', function (req, res) {
         status: 1
       };
 
-      // create user
-      req.db.collection('users').insert(
+      // create user. insertOne: insert() is deprecated in driver 3.x and
+      // removed in 4.x, like the update() calls the other routes moved off.
+      req.db.collection('users').insertOne(
         user,
         function (err, doc) {
           // if error, return 500
@@ -71,51 +72,29 @@ router.get('/list', function (req, res) {
   debug('/game/list. Query Chain passed:', req.query.q);
 
   // read user query. All users by default
-  var userQuery = {};
-  if (req.query.q) {
-
-    try {
-      userQuery = JSON.parse(req.query.q);
-    }
-    catch (e) {
-      debug(' Bad JSON format, NO Query Done!: NO records listed');
-      userQuery = { _id: null };
-    }
-
-    // The whole point of this endpoint is that the caller writes the filter, so
-    // it is a Mongo query straight from the query string by design. What it must
-    // not be is a way to run code: $where and $function hand the server a
-    // JavaScript expression to evaluate, which on a server with them enabled is
-    // remote execution inside the database process, not a filter. They are also
-    // the one part of the query language that nothing here needs - every
-    // documented use ({"status":3} and the like) is plain field matching.
-    if (utils.containsCodeOperator(userQuery)) {
-      return res.status(400).send('Bad parameters');
-    }
-  };
+  // Parsing, the object-only check and the refusal of code-executing
+  // operators ($where, $function, $accumulator - see utils.containsCodeOperator)
+  // live in utils.parseListQuery, shared by /game/list and /user/list.
+  var parsed = utils.parseListQuery(req.query.q);
+  if (parsed.error) {
+    return res.status(400).send(parsed.error);
+  }
+  var userQuery = parsed.query;
 
   debug('JSON Query passed: ', userQuery);
 
   // find users
-  req.db.collection('users').find(
-    userQuery,
-    function (err, cursor) {
-      // if error, return 500
-      if (err) return res.status(500).send('Error when db.find ' + err.message);
+  // toArray rather than find(cb) + cursor.each(): each() reports a failed
+  // query as (err, undefined), and the old callback only looked at `doc == null`
+  // - so a filter the server rejected (an unknown operator, a bad $regex...)
+  // came back as 200 with an empty or partial list instead of an error.
+  req.db.collection('users').find(userQuery).toArray(function (err, users) {
+    // if error, return 500
+    if (err) return res.status(500).send('Error when db.find ' + err.message);
 
-      // walk the cursor
-      var users = [];
-      cursor.each(function (err, doc) {
-
-        if (doc == null) {
-          debug(users);
-          return res.jsonp(users);
-        }
-
-        users.push(doc);
-      });
-    }
-  );
+    debug(users);
+    res.jsonp(users);
+  });
 });
 
 // DELETE

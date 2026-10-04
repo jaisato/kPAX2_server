@@ -11,8 +11,12 @@ const debug = require('debug')('app');
 const MongoClient = require('mongodb').MongoClient;
 
 var routes = require('./routes/index');
+var utils = require('./lib/utils');
 
 var app = express();
+
+// Do not advertise the framework (and so its version family) on every response.
+app.disable('x-powered-by');
 
 // connect to databse
 var database = null;
@@ -33,7 +37,9 @@ if (process.env.MONGODB_URL) {
 //
 // The two options pick the parser and topology that 4.x makes the default and
 // silence the deprecation warnings 3.x prints at startup without them.
-debug('Connecting to Mongodb', url);
+// Never the raw URL: it carries the database password, and the README's
+// own example runs the server with DEBUG=* to print exactly this line.
+debug('Connecting to Mongodb', utils.redactMongoUrl(url));
 MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function (err, client) {
   if (err) {
     debug('ERROR', err);
@@ -126,7 +132,12 @@ app.use(function (req, res, next) {
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
+//
+// Only when NODE_ENV says so explicitly. app.get('env') falls back to
+// 'development' when NODE_ENV is unset - which is how the README starts the
+// server - so every error page used to render the full stack trace (file
+// paths, module layout, driver messages) to whoever triggered it.
+if (process.env.NODE_ENV === 'development') {
   app.use(function (err, req, res, next) {
 
     debug('ERR', err);

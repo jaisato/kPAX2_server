@@ -27,6 +27,8 @@ You can specify parameters using local environment
 
 1. MONGODB_URL: the mongodb connection URL
 2. DEBUG: the prefix for debugin (ex. DEBUG=app*)
+3. NODE_ENV: set it to `development` to get stack traces on error pages. Any
+   other value - or none - renders errors without them.
 
 For stating the server:
 

@@ -123,6 +123,9 @@ router.get('/list', function (req, res, next) {
       // walk cursor
       var games = [];
       cursor.each(function (err, doc) {
+        if (res.headersSent) return;
+        if (err) return res.status(500).send('Error when reading query results');
+
         if (doc == null) {
           debug(games);
           return res.jsonp(games);

@@ -86,7 +86,7 @@ sitios que aún lo usaban, `POST /game/:id` y `POST /game/:game/unlike`, pasan a
 `updateOne` como el resto de escrituras. `unlike` pasaba además `multi: true`
 contra un `guid` que identifica un único juego, así que nunca cambió nada.
 
-Sigue sin haber suite de pruebas. La actualización se comprobó arrancando el
+La actualización original se comprobó arrancando el
 servidor contra un MongoDB 4.4 en Docker y ejercitando la API: `GET /game/list`
 con y sin filtro (`{"nlikes":{"$lt":15}}`), `$where` rechazado con `400` —también
 anidado en un `$or`—, `POST /game/:id`, `GET /game/:id`, `like`/`unlike`
@@ -114,3 +114,12 @@ en un error de instalación. Ver `INSTALL.md`.
 
 Mientras tanto, el servidor no debe exponerse: no tiene autenticación de ningún
 tipo y responde con `Access-Control-Allow-Origin: *`.
+
+## Pruebas de lectura de listas
+
+Desde `server/`, ejecuta `npm test` con Node.js 18 o superior. Las pruebas HTTP
+en loopback sustituyen el cursor de MongoDB y cubren listas vacías, resultados
+válidos y fallos al crear o consumir el cursor. No requieren MongoDB ni
+modifican datos. Un error durante la iteración devuelve HTTP 500, nunca una
+lista parcial con estado 200. Esto no sustituye las pruebas de integración
+con el driver y una base de datos real.

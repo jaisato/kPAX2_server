@@ -11,6 +11,7 @@ const debug = require('debug')('app');
 const MongoClient = require('mongodb').MongoClient;
 
 var routes = require('./routes/index');
+var utils = require('./lib/utils');
 
 var app = express();
 
@@ -43,6 +44,18 @@ MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, fu
   // async!
   database = client.db();
   debug('Successfully connected to the database');
+
+  // The routes look a user up by `login` and a game by `guid` before writing,
+  // which is a check-then-act race: concurrent requests could create two users
+  // with one login, or two games with one guid through the upsert. Unique
+  // indexes make the database the arbiter. Creating them is idempotent; a
+  // failure (say, duplicates already stored) is logged, not fatal, so the API
+  // keeps serving as it did before.
+  [['users', { login: 1 }], ['games', { guid: 1 }]].forEach(function (spec) {
+    database.collection(spec[0]).createIndex(spec[1], { unique: true }, function (err) {
+      if (err) console.error('Could not create the unique index on ' + spec[0] + ':', err.message);
+    });
+  });
 });
 
 // view engine setup
@@ -66,6 +79,17 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+// Refuse request bodies that try to forge BSON types (see
+// utils.containsBsonTypeKey): every route writes parts of req.body to Mongo,
+// so the check belongs here rather than in each handler.
+app.use(function (req, res, next) {
+  if (utils.containsBsonTypeKey(req.body)) {
+    return res.status(400).send('Bad parameters');
+  }
+
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // CORS Enabled

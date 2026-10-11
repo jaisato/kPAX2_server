@@ -45,9 +45,20 @@ router.post('/', function (req, res) {
       };
 
       // create user
-      req.db.collection('users').insert(
+      //
+      // insertOne, not insert(): the latter is deprecated in driver 3.x and
+      // removed in 4.x, like the update() calls the other routes were moved off.
+      //
+      // The findOne above and this write are two round trips, so two concurrent
+      // sign-ups with the same login could both pass the check and both insert.
+      // app.js creates a unique index on `login`; the loser of that race gets a
+      // duplicate-key error (11000), which is the same "Already exists" as the
+      // check above, not a server fault.
+      req.db.collection('users').insertOne(
         user,
         function (err, doc) {
+          if (err && err.code === 11000) return res.status(409).send('Already exists');
+
           // if error, return 500
           if (err) return res.status(500).send('Error when db.insert ' + err.message);
 
@@ -89,7 +100,7 @@ router.get('/list', function (req, res) {
     // remote execution inside the database process, not a filter. They are also
     // the one part of the query language that nothing here needs - every
     // documented use ({"status":3} and the like) is plain field matching.
-    if (utils.containsCodeOperator(userQuery)) {
+    if (!utils.isAcceptableQuery(userQuery)) {
       return res.status(400).send('Bad parameters');
     }
   };

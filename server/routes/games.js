@@ -26,6 +26,28 @@ router.post('/:id', function (req, res) {
     return sendError(400, 'Bad parameters', res);
   }
 
+  // The remaining fields are written to the document verbatim. Nothing checked
+  // their shape, so a JSON body could store an object or an array as the owner
+  // or category - or an object with $-prefixed keys, which the server rejects
+  // and this route then reported as a 500.
+  if (typeof req.body.owner !== 'string' || typeof req.body.category !== 'string') {
+    return sendError(400, 'Bad parameters', res);
+  }
+
+  if (req.body.description != null && typeof req.body.description !== 'string') {
+    return sendError(400, 'Bad parameters', res);
+  }
+
+  // A form post with a single `tags=x` arrives as a string, not an array.
+  var tags = req.body.tags == null ? [] : req.body.tags;
+  if (typeof tags === 'string') {
+    tags = [tags];
+  }
+
+  if (!Array.isArray(tags) || !tags.every(function (tag) { return typeof tag === 'string'; })) {
+    return sendError(400, 'Bad parameters', res);
+  }
+
   // find game
   req.db.collection('games').findOne(
     { name: req.body.name },
@@ -40,7 +62,7 @@ router.post('/:id', function (req, res) {
         name: req.body.name,
         description: req.body.description || '',
         category: req.body.category,
-        tags: req.body.tags || [],
+        tags: tags,
         owner: req.body.owner,
         updated_at: new Date()
       };
@@ -106,7 +128,7 @@ router.get('/list', function (req, res, next) {
     // was given this check and this one was not, so /games/list was still
     // reachable the same way. Nothing documented here needs them: every example
     // ({"nlikes":{"$lt":15}} and the like) is plain field matching.
-    if (utils.containsCodeOperator(gameQuery)) {
+    if (!utils.isAcceptableQuery(gameQuery)) {
       return res.status(400).send('Bad parameters');
     }
   };
@@ -416,9 +438,12 @@ router.post('/:game/unlike', function (req, res) {
 /**
  *
  */
-function sendError (error, message, res) {
-  debug(error, '-', message);
-  res.status(400).send('Bad parameters');
+function sendError (status, message, res) {
+  // This always answered 400 "Bad parameters", whatever status the caller
+  // passed - so a database failure in POST /game/:id (sendError(500, ...))
+  // was reported to the client as its own mistake, a 400.
+  debug(status, '-', message);
+  res.status(status).send(message);
 }
 
 module.exports = router;

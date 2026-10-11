@@ -95,3 +95,48 @@ internals.containsCodeOperator = function (value) {
     return internals.containsCodeOperator(value[key]);
   });
 };
+
+/**
+ * Whether a parsed JSON value carries a `_bsontype` key anywhere.
+ *
+ * The bson 1.x serializer the mongodb 3.x driver uses decides how to encode an
+ * object by reading its `_bsontype` property - it does not check that the
+ * object really is one of its classes. JSON.parse and body-parser build plain
+ * objects, so a client sending {"owner": {"_bsontype": "Code", "code": "..."}}
+ * had the server write a BSON JavaScript-code value into the game document,
+ * and the same trick produces MinKey/MaxKey, DBRef, Symbol or Binary values
+ * that no field here is meant to hold. An unknown `_bsontype` makes the
+ * serializer throw instead, turning the request into a 500. No legitimate
+ * request needs the key, so it is refused wherever client JSON reaches Mongo.
+ */
+internals.containsBsonTypeKey = function (value) {
+
+  if (Array.isArray(value)) {
+    return value.some(internals.containsBsonTypeKey);
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+
+  return Object.keys(value).some(function (key) {
+    return key === '_bsontype' || internals.containsBsonTypeKey(value[key]);
+  });
+};
+
+/**
+ * Whether a value parsed from the `q` query-string parameter can be handed to
+ * find() as a filter.
+ *
+ * It has to be a plain JSON object: an array or a scalar ("q=5") is not a
+ * filter, and the server rejected it - surfacing as a 500 for what is a client
+ * mistake. Beyond that it must not run code (containsCodeOperator) or forge
+ * BSON types (containsBsonTypeKey).
+ */
+internals.isAcceptableQuery = function (query) {
+  if (query === null || typeof query !== 'object' || Array.isArray(query)) {
+    return false;
+  }
+
+  return !internals.containsCodeOperator(query) && !internals.containsBsonTypeKey(query);
+};

@@ -103,11 +103,13 @@ internals.containsCodeOperator = function (value) {
  * caller's filter must be refused. Missing `q` lists everything, and a `q`
  * that is not valid JSON lists nothing - both as before.
  *
- * What is new is the type check. JSON.parse() happily returns a number, a
- * string, a boolean or an array, and the driver's find() quietly drops a
- * selector that is not an object and runs `{}` instead - so `?q=5` or
- * `?q="x"` used to answer with every document in the collection, the exact
- * opposite of a filter. Only a plain object is a filter.
+ * What is new is the type check. JSON.parse() also returns null, numbers,
+ * strings, booleans and arrays, and none of them is a filter. With the
+ * find(query, callback) form the routes use, driver 3.x turns a null selector
+ * into `{}` - so `?q=null` answered with every document in the collection, the
+ * exact opposite of a filter - and throws on the other scalars, while the
+ * server rejects an array: a 500 either way instead of a 400 that tells the
+ * caller what is wrong. Only a plain object is a filter.
  */
 internals.parseListQuery = function (q) {
 

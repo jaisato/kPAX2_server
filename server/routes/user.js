@@ -84,17 +84,28 @@ router.get('/list', function (req, res) {
   debug('JSON Query passed: ', userQuery);
 
   // find users
-  // toArray rather than find(cb) + cursor.each(): each() reports a failed
-  // query as (err, undefined), and the old callback only looked at `doc == null`
-  // - so a filter the server rejected (an unknown operator, a bad $regex...)
-  // came back as 200 with an empty or partial list instead of an error.
-  req.db.collection('users').find(userQuery).toArray(function (err, users) {
-    // if error, return 500
-    if (err) return res.status(500).send('Error when db.find ' + err.message);
+  req.db.collection('users').find(
+    userQuery,
+    function (err, cursor) {
+      // if error, return 500
+      if (err) return res.status(500).send('Error when db.find ' + err.message);
 
-    debug(users);
-    res.jsonp(users);
-  });
+      // walk the cursor
+      var users = [];
+      cursor.each(function (err, doc) {
+        if (res.headersSent) return;
+        if (err) return res.status(500).send('Error when reading query results');
+
+
+        if (doc == null) {
+          debug(users);
+          return res.jsonp(users);
+        }
+
+        users.push(doc);
+      });
+    }
+  );
 });
 
 // DELETE

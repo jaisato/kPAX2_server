@@ -123,5 +123,8 @@ Desde `server/`, ejecuta `npm test` con Node.js 18 o superior. Las pruebas HTTP
 en loopback sustituyen el cursor de MongoDB y cubren listas vacías, resultados
 válidos y fallos al crear o consumir el cursor. No requieren MongoDB ni
 modifican datos. Un error durante la iteración devuelve HTTP 500, nunca una
-lista parcial con estado 200. Esto no sustituye las pruebas de integración
-con el driver y una base de datos real.
+lista parcial con estado 200. También comprueban que el filtro `q` solo llega
+a `find()` si es un objeto JSON: `null`, números, cadenas, booleanos y arrays
+reciben 400, igual que `$where`, `$function` y `$accumulator` (también
+anidados). Esto no sustituye las pruebas de integración con el driver y una
+base de datos real.

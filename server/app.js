@@ -15,6 +15,9 @@ var utils = require('./lib/utils');
 
 var app = express();
 
+// Do not advertise the framework (and so its version line) on every response.
+app.disable('x-powered-by');
+
 // connect to databse
 var database = null;
 
@@ -150,7 +153,13 @@ app.use(function (req, res, next) {
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
+//
+// app.get('env') is NODE_ENV *defaulting to 'development'*, and the README's
+// way of starting the server (bin/www with MONGODB_URL, no NODE_ENV) never sets
+// it - so every deployment that followed the docs rendered full stack traces,
+// with file paths and driver internals, to any client that triggered an error.
+// Stack traces are now opt-in with an explicit NODE_ENV=development.
+if (process.env.NODE_ENV === 'development') {
   app.use(function (err, req, res, next) {
 
     debug('ERR', err);

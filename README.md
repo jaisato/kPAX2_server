@@ -26,7 +26,11 @@ Execute the server from the `server/` directory.
 You can specify parameters using local environment
 
 1. MONGODB_URL: the mongodb connection URL
-2. DEBUG: the prefix for debugin (ex. DEBUG=app*)
+2. DEBUG: the prefix for debugin (ex. DEBUG=app*). Note that `DEBUG=app`
+   logs every request's headers and body.
+3. PORT: the port to listen on (8081 by default)
+4. NODE_ENV: set it to `development` to get stack traces in error pages.
+   Leave it unset (or `production`) anywhere reachable by others.
 
 For stating the server:
 
@@ -42,7 +46,7 @@ $ DEBUG=* MONGODB_URL="mongodb://<user>:<password>@<host>:27017/kpax2" bin/www
 
 ### Change the port  number
 
-For changing the port number edit the file `server/bin/www`
+Set the `PORT` environment variable (see above); `server/bin/www` reads it.
 
 ## API
 

@@ -126,7 +126,13 @@ app.use(function (req, res, next) {
 
 // development error handler
 // will print stacktrace
-if (app.get('env') === 'development') {
+//
+// Only when NODE_ENV says so explicitly. app.get('env') falls back to
+// 'development' when NODE_ENV is unset, and the README starts the server
+// without it, so every deployment that followed the docs rendered the stack
+// trace - file paths, module versions - for any error, a malformed JSON body
+// included.
+if (process.env.NODE_ENV === 'development') {
   app.use(function (err, req, res, next) {
 
     debug('ERR', err);

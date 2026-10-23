@@ -13,12 +13,6 @@ The easiest way to download the server is by cloning it from the GIT repository:
 $ git clone https://github.com/drierat/kPAX2_server.git
 ```
 
-In order to work in the `devel` branch we specify it: 
-
-```bash
-$ git checkout devel
-```
-
 ### Run the server
 
 Execute the server from the `server/` directory.

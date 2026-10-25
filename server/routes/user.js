@@ -89,7 +89,7 @@ router.get('/list', function (req, res) {
     // remote execution inside the database process, not a filter. They are also
     // the one part of the query language that nothing here needs - every
     // documented use ({"status":3} and the like) is plain field matching.
-    if (utils.containsCodeOperator(userQuery)) {
+    if (!utils.isQueryObject(userQuery) || utils.containsCodeOperator(userQuery)) {
       return res.status(400).send('Bad parameters');
     }
   };

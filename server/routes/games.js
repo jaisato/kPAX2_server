@@ -106,7 +106,7 @@ router.get('/list', function (req, res, next) {
     // was given this check and this one was not, so /games/list was still
     // reachable the same way. Nothing documented here needs them: every example
     // ({"nlikes":{"$lt":15}} and the like) is plain field matching.
-    if (utils.containsCodeOperator(gameQuery)) {
+    if (!utils.isQueryObject(gameQuery) || utils.containsCodeOperator(gameQuery)) {
       return res.status(400).send('Bad parameters');
     }
   };
@@ -416,9 +416,12 @@ router.post('/:game/unlike', function (req, res) {
 /**
  *
  */
-function sendError (error, message, res) {
-  debug(error, '-', message);
-  res.status(400).send('Bad parameters');
+function sendError (status, message, res) {
+  debug(status, '-', message);
+  // This used to answer 400 'Bad parameters' whatever it was called with, so
+  // a failed findOne in POST /:id - a server-side fault - reached the client as
+  // "you sent something wrong", and the 500 it was called with was dropped.
+  res.status(status).send(message);
 }
 
 module.exports = router;

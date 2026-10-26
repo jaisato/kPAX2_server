@@ -56,6 +56,19 @@ internals.isJsonString = function (str) {
 };
 
 /**
+ * Whether a parsed `q` parameter can be used as a Mongo filter at all.
+ *
+ * JSON.parse() accepts any JSON value, so `q=5`, `q="abc"` or `q=[1]` parse
+ * fine and used to go straight to find(). The server then rejects the filter
+ * and the list endpoints answered 500 - a server fault - for what is a bad
+ * request. `null` is accepted: the driver reads it as "no filter", the same as
+ * leaving `q` out.
+ */
+internals.isQueryObject = function (value) {
+  return value === null || (typeof value === 'object' && !Array.isArray(value));
+};
+
+/**
  * Operators that make Mongo evaluate JavaScript rather than match fields.
  *
  * All three take an expression the server runs - $where a predicate, $function

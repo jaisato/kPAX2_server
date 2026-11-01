@@ -26,6 +26,17 @@ router.post('/:id', function (req, res) {
     return sendError(400, 'Bad parameters', res);
   }
 
+  // The rest of the body goes into $set as is. owner and category are plain
+  // identifiers that clients compare and filter on (/list?q={"owner":42}),
+  // description is shown as text and tags is documented as a list; nothing
+  // checked any of that, so {"owner": {"x": 1}} or {"tags": [{"a": 1}]} was
+  // stored verbatim and the game no longer matched the filters written for it.
+  // An object here can also carry "$"-prefixed or dotted keys, which the server
+  // refuses inside $set - a client error that surfaced as a 500.
+  if (!isValidGameBody(req.body)) {
+    return sendError(400, 'Bad parameters', res);
+  }
+
   // find game
   req.db.collection('games').findOne(
     { name: req.body.name },
@@ -40,7 +51,7 @@ router.post('/:id', function (req, res) {
         name: req.body.name,
         description: req.body.description || '',
         category: req.body.category,
-        tags: req.body.tags || [],
+        tags: normalizeTags(req.body.tags),
         owner: req.body.owner,
         updated_at: new Date()
       };
@@ -412,6 +423,43 @@ router.post('/:game/unlike', function (req, res) {
 //  UNlike  end
 
 
+
+/**
+ * Types accepted for the fields POST /:id stores.
+ *
+ * They follow what the Elgg frontend (kPAX_core's kpaxSrv::addGame) actually
+ * sends: owner is the owner_guid - a number for a game just created, a string
+ * when the entity was loaded from the database - and category comes from the
+ * form as a string id. tags is the entity's metadata, which Elgg reads back as
+ * an array with two or more tags, a plain string with exactly one and null with
+ * none; normalizeTags() turns all three into an array.
+ */
+function isIdentifier (value) {
+  return typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isValidGameBody (body) {
+  if (!isIdentifier(body.owner) || !isIdentifier(body.category)) {
+    return false;
+  }
+
+  if (typeof body.description !== 'undefined' && body.description !== null &&
+      typeof body.description !== 'string') {
+    return false;
+  }
+
+  if (typeof body.tags !== 'undefined' && body.tags !== null && typeof body.tags !== 'string') {
+    if (!Array.isArray(body.tags)) return false;
+    if (!body.tags.every(function (tag) { return typeof tag === 'string'; })) return false;
+  }
+
+  return true;
+}
+
+function normalizeTags (tags) {
+  if (typeof tags === 'string') return tags === '' ? [] : [tags];
+  return tags || [];
+}
 
 /**
  *

@@ -78,3 +78,34 @@ for (const resource of ['games', 'user']) {
       }));
   }
 }
+
+for (const [label, extra] of [
+  ['owner as an object', { owner: { $gt: '' } }],
+  ['category as a number', { category: 3 }],
+  ['description as an object', { description: { a: 1 } }],
+  ['tags as a string', { tags: 'a,b' }],
+  ['tags with a non-string entry', { tags: ['a', { $set: 1 }] }],
+]) {
+  test(`games: POST /:id with ${label} is a 400`, () =>
+    withServer('games', async (base) => {
+      const response = await fetch(`${base}/g1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'n', owner: 'o', category: 'c', ...extra }),
+      });
+      assert.equal(response.status, 400);
+      await response.text();
+    }));
+}
+
+test('games: POST /:id with valid optional fields reaches the database', () =>
+  withServer('games', async (base) => {
+    const response = await fetch(`${base}/g1`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'n', owner: 'o', category: 'c', description: 'd', tags: ['x'] }),
+    });
+    // the stub's findOne fails, so getting past validation means a 500
+    assert.equal(response.status, 500);
+    await response.text();
+  }));

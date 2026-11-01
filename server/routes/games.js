@@ -26,6 +26,17 @@ router.post('/:id', function (req, res) {
     return sendError(400, 'Bad parameters', res);
   }
 
+  // The rest of the body goes into $set as is. owner and category are plain
+  // identifiers that clients compare and filter on (/list?q={"owner":"..."}),
+  // description is shown as text and tags is documented as a list; nothing
+  // checked any of that, so {"owner": {"x": 1}} or {"tags": "a,b"} was stored
+  // verbatim and the game no longer matched the filters written for it. An
+  // object here can also carry "$"-prefixed or dotted keys, which the server
+  // refuses inside $set - a client error that surfaced as a 500.
+  if (!isValidGameBody(req.body)) {
+    return sendError(400, 'Bad parameters', res);
+  }
+
   // find game
   req.db.collection('games').findOne(
     { name: req.body.name },
@@ -412,6 +423,29 @@ router.post('/:game/unlike', function (req, res) {
 //  UNlike  end
 
 
+
+/**
+ * Types accepted for the fields POST /:id stores. owner and category are
+ * required strings; description is optional text; tags is an optional array of
+ * strings.
+ */
+function isValidGameBody (body) {
+  if (typeof body.owner !== 'string' || typeof body.category !== 'string') {
+    return false;
+  }
+
+  if (typeof body.description !== 'undefined' && body.description !== null &&
+      typeof body.description !== 'string') {
+    return false;
+  }
+
+  if (typeof body.tags !== 'undefined' && body.tags !== null) {
+    if (!Array.isArray(body.tags)) return false;
+    if (!body.tags.every(function (tag) { return typeof tag === 'string'; })) return false;
+  }
+
+  return true;
+}
 
 /**
  *

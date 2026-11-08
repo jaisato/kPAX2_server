@@ -24,6 +24,32 @@ util.inherits(internals.ApiError, Error);
 
 
 /**
+ * What a write route sends back to the client for an updateOne() result.
+ *
+ * Driver 3.x hands the callback a CommandResult whose toJSON() copies every own
+ * property - `connection` included, only `message` is dropped. The like, unlike
+ * and delete routes passed it straight to res.jsonp(), so each answer carried
+ * the database connection with it: the MongoDB server's address and port, its
+ * host name and the connection id, internal topology no client has any use
+ * for. The fields a client can use - the counts and the raw `result` - keep
+ * the same shape.
+ */
+internals.writeResult = function (result) {
+  if (!result || typeof result !== 'object') {
+    return result;
+  }
+
+  var body = typeof result.toJSON === 'function'
+    ? result.toJSON()
+    : Object.assign({}, result);
+
+  delete body.connection;
+  delete body.message;
+
+  return body;
+};
+
+/**
  * check all parameters are not undefined or null
  */
 internals.checkParams = function (req, params) {

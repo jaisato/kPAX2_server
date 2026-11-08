@@ -247,7 +247,7 @@ router.delete('/:id', function (req, res) {
           if (err) return res.status(500).send('Error when db.update ' + err.message);
 
           debug(doc);
-          res.jsonp(doc);
+          res.jsonp(utils.writeResult(doc));
         }
       );  // update end
     }
@@ -331,7 +331,7 @@ router.post('/:game/like', function (req, res) {
               if (err) return res.status(500).send('Error when db.update ' + err.message);
 
               debug(doc);
-              res.jsonp(doc);
+              res.jsonp(utils.writeResult(doc));
             }
           );  // update end
         }
@@ -411,7 +411,7 @@ router.post('/:game/unlike', function (req, res) {
               if (err) return res.status(500).send('Error when db.update ' + err.message);
 
               debug(doc);
-              res.jsonp(doc);
+              res.jsonp(utils.writeResult(doc));
             }
           );
         }

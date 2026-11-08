@@ -50,6 +50,28 @@ internals.writeResult = function (result) {
 };
 
 /**
+ * A connection string that is safe to log.
+ *
+ * The README starts the server with DEBUG=* and the credentials inside
+ * MONGODB_URL, and app.js debug-logged that URL as is, so the database password
+ * went to the terminal and to whatever collects its output. Everything between
+ * the scheme and the last '@' - the user and the password - is masked. Cutting
+ * at the last '@' rather than the first errs on the side of hiding too much if
+ * a password carries an unencoded '@'.
+ */
+internals.redactCredentials = function (url) {
+  var text = String(url);
+  var schemeEnd = text.indexOf('://');
+  var at = text.lastIndexOf('@');
+
+  if (schemeEnd === -1 || at < schemeEnd) {
+    return text;
+  }
+
+  return text.slice(0, schemeEnd + 3) + '****' + text.slice(at);
+};
+
+/**
  * check all parameters are not undefined or null
  */
 internals.checkParams = function (req, params) {

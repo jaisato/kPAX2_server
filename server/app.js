@@ -33,7 +33,7 @@ if (process.env.MONGODB_URL) {
 //
 // The two options pick the parser and topology that 4.x makes the default and
 // silence the deprecation warnings 3.x prints at startup without them.
-debug('Connecting to Mongodb', url);
+debug('Connecting to Mongodb', require('./lib/utils').redactCredentials(url));
 MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function (err, client) {
   if (err) {
     debug('ERROR', err);

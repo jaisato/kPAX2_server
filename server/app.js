@@ -33,7 +33,12 @@ if (process.env.MONGODB_URL) {
 //
 // The two options pick the parser and topology that 4.x makes the default and
 // silence the deprecation warnings 3.x prints at startup without them.
-debug('Connecting to Mongodb', url);
+//
+// The URL normally carries the database password - the README's own example
+// is mongodb://<user>:<password>@<host>/kpax2 - and the README also shows the
+// server started with DEBUG=*, which printed it whole to the console and to
+// whatever collects the logs. Only the credentials are masked.
+debug('Connecting to Mongodb', url.replace(/\/\/[^@/]*@/, '//<credentials>@'));
 MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function (err, client) {
   if (err) {
     debug('ERROR', err);

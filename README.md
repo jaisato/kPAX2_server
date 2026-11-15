@@ -79,6 +79,8 @@ En 3.x `collection.update()` queda obsoleto (y desaparece en 4.x); los dos
 sitios que aún lo usaban, `POST /game/:id` y `POST /game/:game/unlike`, pasan a
 `updateOne` como el resto de escrituras. `unlike` pasaba además `multi: true`
 contra un `guid` que identifica un único juego, así que nunca cambió nada.
+Lo mismo ocurre con `collection.insert()`, que en 3.x imprime un
+`DeprecationWarning` en la primera alta: `POST /user` usa `insertOne`.
 
 La actualización original se comprobó arrancando el
 servidor contra un MongoDB 4.4 en Docker y ejercitando la API: `GET /game/list`

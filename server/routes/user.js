@@ -44,8 +44,11 @@ router.post('/', function (req, res) {
         status: 1
       };
 
-      // create user
-      req.db.collection('users').insert(
+      // create user. insertOne, not insert(): driver 3.x deprecates insert()
+      // - it printed a DeprecationWarning on the first sign-up - and 4.x
+      // removes it, like the update() calls the game routes already dropped.
+      // It also adds the new _id to `user`, so the response keeps carrying it.
+      req.db.collection('users').insertOne(
         user,
         function (err, doc) {
           // if error, return 500

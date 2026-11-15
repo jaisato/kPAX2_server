@@ -94,10 +94,12 @@ conexión no está lista.
 
 Hay dos `overrides` en `package.json`:
 
-- `qs` a `^6.16.0`: express 4 y body-parser 1 lo fijan en `~6.15`, y las dos
+- `qs` a `^6.16.1`: express 4 y body-parser 1 lo fijan en `~6.15`, y las dos
   advisories de esa rama (GHSA-x5fp-wj9c-mxmx y GHSA-4mjr-xmp4-gh2g) se corrigen
-  en 6.16.0, que ninguna versión de express 4 exige todavía. La única
-  alternativa que ofrece npm es subir a express 5, que es un cambio con rotura.
+  en 6.16.0, que ninguna versión de express 4 exige todavía. El suelo es 6.16.1
+  porque 6.16.0 aún tiene la denegación de servicio de `stringify` con
+  `arrayFormat: 'comma'` (GHSA-6pq8-jhm2-2vcw). La única alternativa que ofrece
+  npm es subir a express 5, que es un cambio con rotura.
 - `bson` a `^1.1.6`: con `mongodb@3.7` ya se resuelve 1.1.6 por sí solo, así
   que hoy es sólo un suelo; se mantiene para que los dos críticos de
   `bson <= 1.1.3` no vuelvan a entrar por otro dependiente.

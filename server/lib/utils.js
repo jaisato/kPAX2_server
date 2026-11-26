@@ -108,3 +108,28 @@ internals.containsCodeOperator = function (value) {
     return internals.containsCodeOperator(value[key]);
   });
 };
+
+/**
+ * The connection string, fit for a log: the password in it, if any, is
+ * replaced with ***.
+ *
+ * app.js used to log the URL as it is, and the README starts the server with
+ * `DEBUG=*` and a MONGODB_URL of the form mongodb://<user>:<password>@<host>,
+ * so debug mode wrote the database password to the terminal and to wherever
+ * its output is kept. The user and the hosts stay, which is what tells which
+ * database the server is trying to reach.
+ *
+ * The userinfo ends at the last "@" before the hosts: a password with an "@"
+ * of its own, left unescaped, is redacted whole all the same.
+ */
+internals.withoutPassword = function (connectionString) {
+  var match = /^([^:\/?#]+:\/\/)([^\/?#]*)(.*)$/.exec(connectionString);
+  if (!match) return connectionString;
+
+  var authority = match[2];
+  var at = authority.lastIndexOf('@');
+  var colon = authority.indexOf(':');
+  if (at === -1 || colon === -1 || colon > at) return connectionString;
+
+  return match[1] + authority.slice(0, colon) + ':***' + authority.slice(at) + match[3];
+};

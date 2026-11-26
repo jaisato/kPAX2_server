@@ -158,3 +158,36 @@ test('games: POST /:id stores a single string tag as a one-element array', async
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('user: POST / creates the user with insertOne and answers with its _id', async () => {
+  const app = express();
+  app.use(bodyParser.json());
+  let inserted;
+  app.use((req, res, next) => {
+    // Only the methods driver 4+ still has: no insert().
+    req.db = { collection: () => ({
+      findOne(query, callback) { callback(null, null); },
+      insertOne(doc, callback) { doc._id = 'id-1'; inserted = doc; callback(null, { insertedId: doc._id }); },
+    }) };
+    next();
+  });
+  app.use('/', require('../routes/user'));
+  const server = await new Promise(resolve => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: 'pepe', name: 'Pepe', extra: 'ignored' }),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body._id, 'id-1');
+    assert.equal(body.login, 'pepe');
+    assert.equal(body.status, 1);
+    assert.equal(inserted.extra, undefined);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});

@@ -247,7 +247,7 @@ router.delete('/:id', function (req, res) {
           if (err) return res.status(500).send('Error when db.update ' + err.message);
 
           debug(doc);
-          res.jsonp(doc);
+          res.jsonp(writeSummary(doc));
         }
       );  // update end
     }
@@ -331,7 +331,7 @@ router.post('/:game/like', function (req, res) {
               if (err) return res.status(500).send('Error when db.update ' + err.message);
 
               debug(doc);
-              res.jsonp(doc);
+              res.jsonp(writeSummary(doc));
             }
           );  // update end
         }
@@ -411,7 +411,7 @@ router.post('/:game/unlike', function (req, res) {
               if (err) return res.status(500).send('Error when db.update ' + err.message);
 
               debug(doc);
-              res.jsonp(doc);
+              res.jsonp(writeSummary(doc));
             }
           );
         }
@@ -459,6 +459,32 @@ function isValidGameBody (body) {
 function normalizeTags (tags) {
   if (typeof tags === 'string') return tags === '' ? [] : [tags];
   return tags || [];
+}
+
+/**
+ * What DELETE /:id, /like and /unlike answer with once they have written: the
+ * outcome of the update, and nothing else.
+ *
+ * They answered with the driver's write result as it came, and in driver 3.x
+ * that object carries the connection the write went over. Every like, unlike
+ * and delete told the client the address and port of the MongoDB server
+ * ("address":"10.0.3.7:27017"), the connection id and its socket settings - on
+ * an API that answers any origin. `result` is the server's raw reply, which on
+ * a replica set also carries $clusterTime, opTime and electionId.
+ *
+ * The counts are copied out under the names they had, top level and under
+ * `result`, so a client that read them goes on finding them.
+ */
+function writeSummary (r) {
+  var result = (r && r.result) || {};
+  var counts = { n: result.n, nModified: result.nModified, ok: result.ok };
+
+  return Object.assign({ result: counts }, counts, {
+    matchedCount: r && r.matchedCount,
+    modifiedCount: r && r.modifiedCount,
+    upsertedCount: r && r.upsertedCount,
+    upsertedId: r && r.upsertedId
+  });
 }
 
 /**

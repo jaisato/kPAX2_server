@@ -108,3 +108,34 @@ internals.containsCodeOperator = function (value) {
     return internals.containsCodeOperator(value[key]);
   });
 };
+
+/**
+ * The connection string, fit for a log: the password in it, if any, is
+ * replaced with ***.
+ *
+ * app.js used to log the URL as it is, and the README starts the server with
+ * `DEBUG=*` and a MONGODB_URL of the form mongodb://<user>:<password>@<host>,
+ * so debug mode wrote the database password to the terminal and to wherever
+ * its output is kept. The user and the hosts stay, which is what tells which
+ * database the server is trying to reach.
+ *
+ * The userinfo ends at the last "@" before the hosts: a password with an "@"
+ * of its own, left unescaped, is redacted whole all the same. So is one with
+ * an unescaped "/", "?" or "#" (base64 passwords have "/"), which ends the
+ * authority early: the driver rejects such a URL, but only after this line
+ * has been logged.
+ */
+internals.withoutPassword = function (connectionString) {
+  var match = /^([^:\/?#]+:\/\/)(.*)$/.exec(connectionString);
+  if (!match) return connectionString;
+
+  var rest = match[2];
+  var at = rest.lastIndexOf('@', rest.search(/[\/?#]|$/));
+  // No "@" in the authority: take the last one anywhere. An "@" in the
+  // options can then hide more than the password, never less.
+  if (at === -1) at = rest.lastIndexOf('@');
+  var colon = rest.indexOf(':');
+  if (at === -1 || colon === -1 || colon > at) return connectionString;
+
+  return match[1] + rest.slice(0, colon) + ':***' + rest.slice(at);
+};

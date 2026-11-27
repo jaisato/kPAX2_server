@@ -7,6 +7,8 @@ var bodyParser = require('body-parser');
 
 const debug = require('debug')('app');
 
+const utils = require('./lib/utils');
+
 // client for mongodb database
 const MongoClient = require('mongodb').MongoClient;
 
@@ -33,7 +35,7 @@ if (process.env.MONGODB_URL) {
 //
 // The two options pick the parser and topology that 4.x makes the default and
 // silence the deprecation warnings 3.x prints at startup without them.
-debug('Connecting to Mongodb', url);
+debug('Connecting to Mongodb', utils.withoutPassword(url));
 MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }, function (err, client) {
   if (err) {
     debug('ERROR', err);

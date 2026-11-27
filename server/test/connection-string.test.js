@@ -14,6 +14,10 @@ for (const [label, url, expected] of [
     'mongodb+srv://u:***@cluster0.example.net/kpax2'],
   ['an "@" left unescaped in the password', 'mongodb://u:p@ss@h1/kpax2',
     'mongodb://u:***@h1/kpax2'],
+  ['a "/" left unescaped in the password', 'mongodb://u:pa/ss@h1:27017/kpax2',
+    'mongodb://u:***@h1:27017/kpax2'],
+  ['a "?" or "#" left unescaped in the password', 'mongodb://u:p?a#ss@h1/kpax2?replicaSet=rs0',
+    'mongodb://u:***@h1/kpax2?replicaSet=rs0'],
   ['no credentials', 'mongodb://localhost:27017/kpax2', 'mongodb://localhost:27017/kpax2'],
   ['a user without a password', 'mongodb://u@h1:27017/kpax2', 'mongodb://u@h1:27017/kpax2'],
 ]) {
